@@ -12,16 +12,16 @@ A macOS menu bar widget that shows your **remaining** Claude Code rate limits in
 │ Claude Code (max)            │
 │──────────────────────────────│
 │ 🟢  5-Hour Session           │
-│ ■■■■■■■■■■□□□□□□□□□□        │
+│ ■■■■■■■■■■□□□□□□□□□□         │
 │ 52.0% remaining              │
 │ Refills in 3h 42m            │
 │──────────────────────────────│
 │ 🟢  7-Day Window             │
-│ ■■■■■■■■■■■■■■■■□□□□        │
+│ ■■■■■■■■■■■■■■■■□□□□         │
 │ 81.0% remaining              │
 │ Refills in 4d 12h            │
 │──────────────────────────────│
-│ Source: live                  │
+│ Source: live                 │
 │──────────────────────────────│
 │ Refresh                      │
 │ Open log                     │
