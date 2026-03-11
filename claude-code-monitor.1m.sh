@@ -262,17 +262,11 @@ seven_day_left_int=${seven_day_left%.*}
 five_color=$(color_for_remaining "$five_hr_left")
 seven_color=$(color_for_remaining "$seven_day_left")
 
-# Menu bar — show most constrained limit
-if [ "$five_hr_left_int" -le "$seven_day_left_int" ]; then
-  bar_remaining="$five_hr_left_int"
-else
-  bar_remaining="$seven_day_left_int"
-fi
-
+# Menu bar — always show 5-hour session (what you're actively using)
 S=14  # base font size
 
-bar_icon=$(status_icon "$bar_remaining")
-echo "${bar_icon} CC ${bar_remaining}% left | size=13"
+bar_icon=$(status_icon "$five_hr_left_int")
+echo "${bar_icon} ${five_hr_left_int}% · 7d:${seven_day_left_int}% | size=13"
 echo "---"
 
 # Header
