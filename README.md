@@ -7,7 +7,7 @@ A macOS menu bar widget that shows your **remaining** Claude Code rate limits in
 ## What It Looks Like
 
 ```
-🟢 CC 52% left                  ← menu bar
+🟢 52% · 7d:81%                 ← menu bar (5h session · 7-day window)
 ┌──────────────────────────────┐
 │ Claude Code (max)            │
 │──────────────────────────────│
@@ -84,7 +84,7 @@ chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh
 3. In the folder picker, press **Cmd + Shift + G** and type `~/SwiftBarPlugins`
 4. Click **Open**
 
-You should now see **🟢 CC XX% left** in your menu bar.
+You should now see **🟢 XX% · 7d:XX%** in your menu bar.
 
 ## How It Works
 
