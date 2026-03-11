@@ -238,7 +238,7 @@ format_reset() {
   local now=$(date "+%s")
   local diff=$((reset_epoch - now))
   if [ "$diff" -le 0 ]; then
-    echo "soon"
+    echo ""
     return
   fi
   local days=$((diff / 86400))
