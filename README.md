@@ -63,14 +63,14 @@ brew install jq
 ### Step 2: Clone this repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/claude-code-monitor.git ~/SwiftBarPlugins
+git clone https://github.com/haomingkoo/claude-code-monitor.git ~/SwiftBarPlugins
 ```
 
 Or if you already have a SwiftBar plugins folder, copy just the script:
 
 ```bash
 curl -o ~/SwiftBarPlugins/claude-code-monitor.1m.sh \
-  https://raw.githubusercontent.com/YOUR_USERNAME/claude-code-monitor/main/claude-code-monitor.1m.sh
+  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.1m.sh
 chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh
 ```
 
@@ -90,9 +90,9 @@ You should now see **🟢 CC XX% left** in your menu bar.
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│ macOS        │     │ Anthropic API    │     │ SwiftBar    │
-│ Keychain     │────>│ /api/oauth/usage │────>│ Menu Bar    │
-│ (OAuth token)│     │ (GET, cached)    │     │ (render)    │
+│ macOS       │     │ Anthropic API    │     │ SwiftBar    │
+│ Keychain    │────>│ /api/oauth/usage │────>│ Menu Bar    │
+│(OAuth token)│     │ (GET, cached)    │     │ (render)    │
 └─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
