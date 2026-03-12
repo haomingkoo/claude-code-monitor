@@ -2,3 +2,12 @@ README.md
 LICENSE
 .gitignore
 .swiftbarignore
+macos/
+windows/
+set-language.sh
+set-lang-en.sh
+set-lang-zh.sh
+set-lang-ja.sh
+set-lang-ko.sh
+set-lang-ta.sh
+set-lang-ms.sh
