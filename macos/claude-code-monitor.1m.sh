@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # <xbar.title>Claude Code Usage</xbar.title>
-# <xbar.version>v7.0</xbar.version>
+# <xbar.version>v8.0</xbar.version>
 # <xbar.author>koohaoming</xbar.author>
 # <xbar.desc>Shows Claude Code remaining rate limits via OAuth endpoint</xbar.desc>
 
@@ -14,8 +14,13 @@ LOG_FILE="$CACHE_DIR/plugin.log"
 NOTIFY_STATE="$CACHE_DIR/notify_state"
 CACHE_TTL=120  # seconds — don't call API if cache is fresher than this
 
-# Language: en | zh | ja | ko | ms
-LANGUAGE="${LANGUAGE:-en}"
+# Language: saved in config file, changeable from dropdown menu
+LANG_FILE="$CACHE_DIR/language"
+if [ -f "$LANG_FILE" ]; then
+  LANGUAGE=$(cat "$LANG_FILE")
+else
+  LANGUAGE="${LANGUAGE:-en}"
+fi
 
 # Notification thresholds (remaining %) — alerts when crossing below these
 NOTIFY_THRESHOLDS="50 25 10"
@@ -70,6 +75,23 @@ case "$LANGUAGE" in
     L_BAD_DATA="API 응답 오류"; L_API_ERROR="API 오류"
     L_NEED_JQ="jq 필요"; L_INSTALL_JQ="jq 설치"
     L_NOTIFY_TITLE="Claude Code 사용량 경고"
+    fmt_remaining() { echo "${1}% $L_REMAINING"; }
+    fmt_refills() { echo "$L_REFILLS ${1}"; }
+    fmt_burns() { echo "$L_BURNS ~${1}"; }
+    fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
+    fmt_pace() { echo "$L_PACE: ${1}x"; }
+    fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    ;;
+  ta)
+    L_SESSION_5H="5-மணி அமர்வு"; L_WINDOW_7D="7-நாள் சாளரம்"; L_WINDOW_7D_OPUS="7-நாள் Opus"
+    L_REMAINING="மீதம்"; L_REFILLS="மீட்டமைப்பு"; L_BURNS="தீர்ந்துவிடும்"
+    L_RESETS_AT="மீட்டமைப்பு நேரம்"; L_PACE="வேகம்"
+    L_SOURCE="மூலம்"; L_REFRESH="புதுப்பி"; L_OPEN_LOG="பதிவைத் திற"
+    L_NOT_AVAIL="தரவு இல்லை — பயன்பாட்டிற்குப் பின் புதுப்பிக்கப்படும்"; L_RATE_LIMITED="வரம்பு — பின்னர் முயற்சிக்கவும்"
+    L_NO_AUTH="Claude Code உள்நுழையவில்லை"; L_NO_TOKEN="OAuth டோக்கன் பிழை"
+    L_BAD_DATA="API பதில் தவறானது"; L_API_ERROR="API பிழை"
+    L_NEED_JQ="jq தேவை"; L_INSTALL_JQ="jq நிறுவு"
+    L_NOTIFY_TITLE="Claude Code பயன்பாட்டு எச்சரிக்கை"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -275,17 +297,20 @@ if [ "$DARK_MODE" = "Dark" ]; then
   BAR_FILLED_RED="#C0392B"
   BAR_EMPTY="#444444"
 else
-  TEXT_PRIMARY="#1a1a1a"
-  TEXT_SECONDARY="#333333"
-  TEXT_MUTED="#666666"
-  COLOR_GREEN="#006B3F"
-  COLOR_ORANGE="#B45309"
-  COLOR_RED="#B91C1C"
-  BAR_FILLED_GREEN="#006B3F"
-  BAR_FILLED_ORANGE="#B45309"
-  BAR_FILLED_RED="#B91C1C"
-  BAR_EMPTY="#CCCCCC"
+  TEXT_PRIMARY="#2a2a2a"
+  TEXT_SECONDARY="#2a2a2a"
+  TEXT_MUTED="#2a2a2a"
+  COLOR_GREEN="#004D2C"
+  COLOR_ORANGE="#8B4000"
+  COLOR_RED="#8B0000"
+  BAR_FILLED_GREEN="#004D2C"
+  BAR_FILLED_ORANGE="#8B4000"
+  BAR_FILLED_RED="#8B0000"
+  BAR_EMPTY="#999999"
 fi
+
+# Helper: only emit "color=X" when X is non-empty; omitting lets macOS use native text color
+c() { [ -n "$1" ] && echo "color=$1" || echo ""; }
 
 color_for_remaining() {
   local r=${1%.*}
@@ -578,7 +603,7 @@ echo "---"
 
 # Header
 SUB_TYPE=$(echo "$CREDS" | $JQ -r '.claudeAiOauth.subscriptionType // "unknown"' 2>/dev/null)
-echo "Claude Code (${SUB_TYPE}) | size=$S color=$TEXT_PRIMARY"
+echo "Claude Code (${SUB_TYPE}) | size=$S $(c "$TEXT_PRIMARY") bash='true' terminal=false"
 echo "---"
 
 # Section renderer
@@ -591,9 +616,12 @@ render_section() {
   local utilization="$6"
   local available="$7"  # "true" or "false"
 
+  # bash='true' on info lines forces macOS to render at full opacity (not vibrancy-faded)
+  local NOP="bash='true' terminal=false"
+
   if [ "$available" = "false" ]; then
-    echo "⚪  ${label} | size=$S color=$TEXT_MUTED"
-    echo "$L_NOT_AVAIL | size=$S color=$TEXT_MUTED"
+    echo "⚪  ${label} | size=$S $(c "$TEXT_MUTED") $NOP"
+    echo "$L_NOT_AVAIL | size=$S $(c "$TEXT_MUTED") $NOP"
     return
   fi
 
@@ -603,15 +631,15 @@ render_section() {
   local local_time=$(format_local_reset_time "$reset_ts")
   local bar_col=$(bar_color_for_remaining "$left")
 
-  echo "${icon}  ${label} | size=$S color=$TEXT_PRIMARY"
-  echo "${bar} | size=$S font=Menlo color=${bar_col}"
-  echo "$(fmt_remaining "$left") | size=$S color=$color"
+  echo "${icon}  ${label} | size=$S $(c "$TEXT_PRIMARY") $NOP"
+  echo "${bar} | size=$S font=Menlo color=${bar_col} $NOP"
+  echo "$(fmt_remaining "$left") | size=$S color=$color $NOP"
 
   # Refill countdown + local reset time
   if [ -n "$reset_str" ] && [ -n "$local_time" ]; then
-    echo "$(fmt_refills "$reset_str") (${local_time}) | size=$S color=$TEXT_SECONDARY"
+    echo "$(fmt_refills "$reset_str") (${local_time}) | size=$S $(c "$TEXT_SECONDARY") $NOP"
   elif [ -n "$reset_str" ]; then
-    echo "$(fmt_refills "$reset_str") | size=$S color=$TEXT_SECONDARY"
+    echo "$(fmt_refills "$reset_str") | size=$S $(c "$TEXT_SECONDARY") $NOP"
   fi
 
   # Pace indicator + burnout projection
@@ -619,12 +647,12 @@ render_section() {
     local pace=$(calc_pace "$utilization" "$reset_ts" "$window_secs")
     if [ -n "$pace" ]; then
       local picon=$(pace_icon "$pace")
-      echo "${picon} $(fmt_pace "$pace") | size=$S color=$TEXT_SECONDARY"
+      echo "${picon} $(fmt_pace "$pace") | size=$S $(c "$TEXT_SECONDARY") $NOP"
     fi
 
     local burnout=$(format_burnout "$utilization" "$reset_ts" "$window_secs")
     if [ -n "$burnout" ]; then
-      echo "$(fmt_burns "$burnout") | size=$S color=$TEXT_SECONDARY"
+      echo "$(fmt_burns "$burnout") | size=$S $(c "$TEXT_SECONDARY") $NOP"
     fi
   fi
 }
@@ -646,10 +674,22 @@ if [ -n "$opus_used" ] && [ "$opus_used" != "null" ]; then
 fi
 
 echo "---"
-echo "$L_SOURCE: ${FETCH_STATUS} | size=$S color=$TEXT_SECONDARY"
+echo "$L_SOURCE: ${FETCH_STATUS} | size=$S $(c "$TEXT_SECONDARY") bash='true' terminal=false"
 echo "---"
-echo "$L_REFRESH | refresh=true color=$TEXT_SECONDARY size=$S"
-echo "$L_OPEN_LOG | bash='open' param1='$LOG_FILE' terminal=false color=$TEXT_SECONDARY size=$S"
+echo "$L_REFRESH | refresh=true $(c "$TEXT_SECONDARY") size=$S"
+echo "$L_OPEN_LOG | bash='open' param1='$LOG_FILE' terminal=false $(c "$TEXT_SECONDARY") size=$S"
+
+# Language selector submenu
+echo "---"
+lang_check() { [ "$LANGUAGE" = "$1" ] && echo "✓ " || echo "  "; }
+LANG_SCRIPT="$(cd "$(dirname "$0")" && pwd)/set-language.sh"
+echo "Language | size=$S $(c "$TEXT_SECONDARY")"
+echo "-- $(lang_check en)English | bash='$LANG_SCRIPT' param1='en' terminal=false refresh=true size=$S"
+echo "-- $(lang_check zh)中文 | bash='$LANG_SCRIPT' param1='zh' terminal=false refresh=true size=$S"
+echo "-- $(lang_check ja)日本語 | bash='$LANG_SCRIPT' param1='ja' terminal=false refresh=true size=$S"
+echo "-- $(lang_check ko)한국어 | bash='$LANG_SCRIPT' param1='ko' terminal=false refresh=true size=$S"
+echo "-- $(lang_check ta)தமிழ் | bash='$LANG_SCRIPT' param1='ta' terminal=false refresh=true size=$S"
+echo "-- $(lang_check ms)Bahasa Melayu | bash='$LANG_SCRIPT' param1='ms' terminal=false refresh=true size=$S"
 
 # ============================================================
 # NOTIFICATIONS (run after render so UI updates immediately)
