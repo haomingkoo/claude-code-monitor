@@ -252,7 +252,7 @@ The monitor reads from an unofficial (but widely used) Anthropic endpoint:
 }
 ```
 
-### Pace Calculation (macOS)
+### Pace Calculation
 
 ```
 ideal_usage = (elapsed / window_size) × 100%
