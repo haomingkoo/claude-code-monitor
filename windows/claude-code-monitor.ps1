@@ -5,8 +5,8 @@
 # limits in real time. No dependencies beyond PowerShell 5.1+
 # and .NET Framework (both ship with Windows 10/11).
 #
-# Usage: Right-click the script -> "Run with PowerShell"
-#        Or: powershell -ExecutionPolicy Bypass -File claude-code-monitor.ps1
+# Usage: Double-click claude-code-monitor.exe
+#        Or: powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File claude-code-monitor.ps1
 # ============================================================
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -130,6 +130,19 @@ function Get-Usage {
 # ============================================================
 # ICON RENDERING
 # ============================================================
+# We need to properly destroy old icons to avoid GDI handle leaks.
+# Store the Win32 handle so we can call DestroyIcon on it.
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+public class IconHelper {
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool DestroyIcon(IntPtr hIcon);
+}
+"@ -ErrorAction SilentlyContinue
+
+$script:CurrentIconHandle = [IntPtr]::Zero
+
 function New-TrayIcon {
     param([int]$Percent, [string]$ColorTier)
 
@@ -145,13 +158,33 @@ function New-TrayIcon {
         default  { [System.Drawing.Color]::Gray }
     }
 
-    # Draw a donut ring
-    $pen = New-Object System.Drawing.Pen($color, 3)
-    $g.DrawEllipse($pen, 3, 3, 10, 10)
-    $pen.Dispose()
+    # Draw a progress ring — arc length reflects remaining %
+    # Background track (dim)
+    $bgPen = New-Object System.Drawing.Pen([System.Drawing.Color]::FromArgb(60, 60, 60), 2)
+    $g.DrawEllipse($bgPen, 2, 2, 12, 12)
+    $bgPen.Dispose()
+
+    # Foreground arc — starts at top (-90 deg), sweeps clockwise by percent
+    if ($Percent -gt 0) {
+        $sweepAngle = [int](360 * $Percent / 100)
+        $pen = New-Object System.Drawing.Pen($color, 2)
+        $pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round
+        $g.DrawArc($pen, 2, 2, 12, 12, -90, $sweepAngle)
+        $pen.Dispose()
+    }
 
     $g.Dispose()
-    $icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
+
+    # Destroy the previous icon handle to prevent GDI leak
+    if ($script:CurrentIconHandle -ne [IntPtr]::Zero) {
+        [IconHelper]::DestroyIcon($script:CurrentIconHandle) | Out-Null
+        $script:CurrentIconHandle = [IntPtr]::Zero
+    }
+
+    $hIcon = $bmp.GetHicon()
+    $script:CurrentIconHandle = $hIcon
+    $icon = [System.Drawing.Icon]::FromHandle($hIcon)
     $bmp.Dispose()
     return $icon
 }
@@ -169,9 +202,9 @@ function Get-ColorTier {
 function Get-StatusEmoji {
     param([string]$Tier)
     switch ($Tier) {
-        "green"  { return [char]::ConvertFromUtf32(0x1F7E2) }  # green circle
-        "orange" { return [char]::ConvertFromUtf32(0x1F7E1) }  # yellow circle
-        "red"    { return [char]::ConvertFromUtf32(0x1F534) }   # red circle
+        "green"  { return [char]::ConvertFromUtf32(0x1F7E2) }
+        "orange" { return [char]::ConvertFromUtf32(0x1F7E1) }
+        "red"    { return [char]::ConvertFromUtf32(0x1F534) }
     }
 }
 
@@ -197,69 +230,89 @@ function Format-ProgressBar {
 }
 
 # ============================================================
-# BALLOON / TOOLTIP UPDATE
+# DISPLAY UPDATE
 # ============================================================
 function Update-Display {
-    $usage = Get-Usage
-    if (-not $usage) {
-        $script:NotifyIcon.Text = "Claude Code: No data"
-        $script:NotifyIcon.Icon = New-TrayIcon -Percent 0 -ColorTier "red"
-        Update-ContextMenu $null
-        return
+    try {
+        $usage = Get-Usage
+        if (-not $usage) {
+            $script:NotifyIcon.Text = "Claude Code: No data"
+            Set-TrayIcon -Percent 0 -ColorTier "red"
+            Update-ContextMenu $null
+            return
+        }
+
+        # Parse usage data
+        $fiveHrUsed   = [double]($usage.five_hour.utilization)
+        $fiveHrReset  = $usage.five_hour.resets_at
+        $sevenDayUsed = [double]($usage.seven_day.utilization)
+        $sevenDayReset = $usage.seven_day.resets_at
+
+        $fiveHrLeft   = [Math]::Round(100 - $fiveHrUsed, 1)
+        $sevenDayLeft = [Math]::Round(100 - $sevenDayUsed, 1)
+
+        $fiveColor = Get-ColorTier $fiveHrLeft
+        $sevenColor = Get-ColorTier $sevenDayLeft
+
+        # Opus (optional)
+        $opusLeft = $null
+        $opusReset = $null
+        $opusColor = $null
+        if ($usage.seven_day_opus -and $usage.seven_day_opus.utilization) {
+            $opusUsed = [double]($usage.seven_day_opus.utilization)
+            $opusLeft = [Math]::Round(100 - $opusUsed, 1)
+            $opusReset = $usage.seven_day_opus.resets_at
+            $opusColor = Get-ColorTier $opusLeft
+        }
+
+        # Update tray icon (based on 5-hour session)
+        Set-TrayIcon -Percent ([int]$fiveHrLeft) -ColorTier $fiveColor
+
+        # Tooltip (max 63 chars)
+        $tooltip = "5h: $([int]$fiveHrLeft)% | 7d: $([int]$sevenDayLeft)%"
+        if ($opusLeft -ne $null) { $tooltip += " | Opus: $([int]$opusLeft)%" }
+        $script:NotifyIcon.Text = $tooltip
+
+        Write-Log "INFO" "5h: ${fiveHrLeft}% | 7d: ${sevenDayLeft}% | src: $($script:FetchStatus)"
+
+        # Update context menu
+        Update-ContextMenu @{
+            FiveHrLeft    = $fiveHrLeft
+            FiveColor     = $fiveColor
+            FiveReset     = $fiveHrReset
+            SevenDayLeft  = $sevenDayLeft
+            SevenColor    = $sevenColor
+            SevenReset    = $sevenDayReset
+            OpusLeft      = $opusLeft
+            OpusColor     = $opusColor
+            OpusReset     = $opusReset
+        }
+    } catch {
+        Write-Log "ERROR" "Update-Display failed: $_"
     }
+}
 
-    # Parse usage data
-    $fiveHrUsed   = [double]($usage.five_hour.utilization)
-    $fiveHrReset  = $usage.five_hour.resets_at
-    $sevenDayUsed = [double]($usage.seven_day.utilization)
-    $sevenDayReset = $usage.seven_day.resets_at
-
-    $fiveHrLeft   = [Math]::Round(100 - $fiveHrUsed, 1)
-    $sevenDayLeft = [Math]::Round(100 - $sevenDayUsed, 1)
-
-    $fiveColor = Get-ColorTier $fiveHrLeft
-    $sevenColor = Get-ColorTier $sevenDayLeft
-
-    # Opus (optional)
-    $opusLeft = $null
-    $opusReset = $null
-    $opusColor = $null
-    if ($usage.seven_day_opus -and $usage.seven_day_opus.utilization) {
-        $opusUsed = [double]($usage.seven_day_opus.utilization)
-        $opusLeft = [Math]::Round(100 - $opusUsed, 1)
-        $opusReset = $usage.seven_day_opus.resets_at
-        $opusColor = Get-ColorTier $opusLeft
-    }
-
-    # Update tray icon (based on 5-hour session - most relevant)
-    $script:NotifyIcon.Icon = New-TrayIcon -Percent ([int]$fiveHrLeft) -ColorTier $fiveColor
-
-    # Tooltip (max 63 chars)
-    $tooltip = "5h: $([int]$fiveHrLeft)% | 7d: $([int]$sevenDayLeft)%"
-    if ($opusLeft -ne $null) { $tooltip += " | Opus: $([int]$opusLeft)%" }
-    $script:NotifyIcon.Text = $tooltip
-
-    Write-Log "INFO" "5h: ${fiveHrLeft}% | 7d: ${sevenDayLeft}% | src: $($script:FetchStatus)"
-
-    # Update context menu with details
-    Update-ContextMenu @{
-        FiveHrLeft    = $fiveHrLeft
-        FiveColor     = $fiveColor
-        FiveReset     = $fiveHrReset
-        SevenDayLeft  = $sevenDayLeft
-        SevenColor    = $sevenColor
-        SevenReset    = $sevenDayReset
-        OpusLeft      = $opusLeft
-        OpusColor     = $opusColor
-        OpusReset     = $opusReset
-    }
+# Wrapper to safely set tray icon with proper disposal
+function Set-TrayIcon {
+    param([int]$Percent, [string]$ColorTier)
+    $newIcon = New-TrayIcon -Percent $Percent -ColorTier $ColorTier
+    $script:NotifyIcon.Icon = $newIcon
 }
 
 # ============================================================
 # CONTEXT MENU (right-click details)
 # ============================================================
+# Pre-create reusable fonts to avoid GDI leaks
+$script:FontBold    = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
+$script:FontMono    = New-Object System.Drawing.Font("Consolas", 9)
+
 function Update-ContextMenu {
     param($Data)
+
+    # Dispose old menu before creating new one
+    if ($script:NotifyIcon.ContextMenuStrip) {
+        $script:NotifyIcon.ContextMenuStrip.Dispose()
+    }
 
     $menu = New-Object System.Windows.Forms.ContextMenuStrip
     $menu.RenderMode = [System.Windows.Forms.ToolStripRenderMode]::System
@@ -267,8 +320,8 @@ function Update-ContextMenu {
     $subType = if ($script:SubscriptionType) { $script:SubscriptionType } else { "unknown" }
     $header = $menu.Items.Add("Claude Code ($subType)")
     $header.Enabled = $false
-    $header.Font = New-Object System.Drawing.Font("Segoe UI", 9, [System.Drawing.FontStyle]::Bold)
-    $menu.Items.Add("-") | Out-Null  # separator
+    $header.Font = $script:FontBold
+    $menu.Items.Add("-") | Out-Null
 
     if ($Data) {
         # 5-Hour Session
@@ -277,7 +330,7 @@ function Update-ContextMenu {
         $bar5 = Format-ProgressBar ([int]$Data.FiveHrLeft)
         $barItem5 = $menu.Items.Add("  $bar5")
         $barItem5.Enabled = $false
-        $barItem5.Font = New-Object System.Drawing.Font("Consolas", 9)
+        $barItem5.Font = $script:FontMono
         $menu.Items.Add("  $([int]$Data.FiveHrLeft)% remaining").Enabled = $false
         $resetStr5 = Format-ResetTime $Data.FiveReset
         if ($resetStr5) { $menu.Items.Add("  Refills in $resetStr5").Enabled = $false }
@@ -290,7 +343,7 @@ function Update-ContextMenu {
         $bar7 = Format-ProgressBar ([int]$Data.SevenDayLeft)
         $barItem7 = $menu.Items.Add("  $bar7")
         $barItem7.Enabled = $false
-        $barItem7.Font = New-Object System.Drawing.Font("Consolas", 9)
+        $barItem7.Font = $script:FontMono
         $menu.Items.Add("  $([int]$Data.SevenDayLeft)% remaining").Enabled = $false
         $resetStr7 = Format-ResetTime $Data.SevenReset
         if ($resetStr7) { $menu.Items.Add("  Refills in $resetStr7").Enabled = $false }
@@ -303,7 +356,7 @@ function Update-ContextMenu {
             $barO = Format-ProgressBar ([int]$Data.OpusLeft)
             $barItemO = $menu.Items.Add("  $barO")
             $barItemO.Enabled = $false
-            $barItemO.Font = New-Object System.Drawing.Font("Consolas", 9)
+            $barItemO.Font = $script:FontMono
             $menu.Items.Add("  $([int]$Data.OpusLeft)% remaining").Enabled = $false
             $resetStrO = Format-ResetTime $Data.OpusReset
             if ($resetStrO) { $menu.Items.Add("  Refills in $resetStrO").Enabled = $false }
@@ -321,9 +374,9 @@ function Update-ContextMenu {
     # Refresh button
     $refreshItem = $menu.Items.Add("Refresh Now")
     $refreshItem.Add_Click({
-        $script:CacheTTL = 0  # force refresh
+        $script:CacheTTL = 0
         Update-Display
-        $script:CacheTTL = 120  # restore
+        $script:CacheTTL = 120
     })
 
     # Open log
@@ -340,8 +393,14 @@ function Update-ContextMenu {
     $exitItem = $menu.Items.Add("Exit")
     $exitItem.Add_Click({
         $script:Timer.Stop()
+        $script:Timer.Dispose()
         $script:NotifyIcon.Visible = $false
         $script:NotifyIcon.Dispose()
+        $script:FontBold.Dispose()
+        $script:FontMono.Dispose()
+        if ($script:CurrentIconHandle -ne [IntPtr]::Zero) {
+            [IconHelper]::DestroyIcon($script:CurrentIconHandle) | Out-Null
+        }
         [System.Windows.Forms.Application]::Exit()
     })
 
@@ -385,6 +444,8 @@ $script:Timer.Start()
 # Run the message loop
 [System.Windows.Forms.Application]::Run()
 
-# Cleanup
-$script:Mutex.ReleaseMutex()
+# Cleanup (runs after Application.Exit)
+try {
+    $script:Mutex.ReleaseMutex()
+} catch {}
 $script:Mutex.Dispose()

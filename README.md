@@ -30,7 +30,7 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 
 ### Windows (System Tray)
 
-A color-coded donut ring icon appears in your system tray. Right-click for details:
+A color-coded progress arc icon appears in your system tray — the arc fills based on remaining %. Right-click for details:
 
 ```
 ┌──────────────────────────────┐
@@ -97,7 +97,7 @@ Or if you already have a SwiftBar plugins folder, copy just the script:
 
 ```bash
 curl -o ~/SwiftBarPlugins/claude-code-monitor.1m.sh \
-  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.1m.sh
+  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/macos/claude-code-monitor.1m.sh
 chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh
 ```
 
@@ -144,12 +144,12 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
 ```
 
-A color-coded donut ring icon will appear in your system tray. Hover for a quick summary, right-click for full details.
+A color-coded progress arc icon will appear in your system tray. Hover for a quick summary, right-click for full details.
 
 ### Auto-start on login (optional)
 
 1. Press **Win + R**, type `shell:startup`, press Enter
-2. Copy `windows\launch-monitor.bat` into that folder
+2. Copy `windows\launch-monitor.bat` into that folder (edit the path inside if needed)
 
 ---
 
