@@ -1,10 +1,10 @@
 # Claude Code Monitor
 
-A macOS menu bar widget that shows your **remaining** Claude Code rate limits in real time.
-
-> **Platform:** macOS only. This plugin uses [SwiftBar](https://github.com/swiftbar/SwiftBar) (macOS menu bar app) and reads credentials from the macOS Keychain. It is not compatible with Linux or Windows.
+A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time. Available for **macOS** and **Windows**.
 
 ## What It Looks Like
+
+### macOS (SwiftBar)
 
 ```
 🟢 52% · 7d:81%                 ← menu bar (5h session · 7-day window)
@@ -28,19 +28,48 @@ A macOS menu bar widget that shows your **remaining** Claude Code rate limits in
 └──────────────────────────────┘
 ```
 
+### Windows (System Tray)
+
+A color-coded donut ring icon appears in your system tray. Right-click for details:
+
+```
+┌──────────────────────────────┐
+│ Claude Code (max)            │
+│──────────────────────────────│
+│ 🟢  5-Hour Session           │
+│ ■■■■■■■■■■□□□□□□□□□□         │
+│ 52% remaining                │
+│ Refills in 3h 42m            │
+│──────────────────────────────│
+│ 🟢  7-Day Window             │
+│ ■■■■■■■■■■■■■■■■□□□□         │
+│ 81% remaining                │
+│ Refills in 4d 12h            │
+│──────────────────────────────│
+│ Source: live                 │
+│──────────────────────────────│
+│ Refresh Now                  │
+│ Open Log                     │
+│ Exit                         │
+└──────────────────────────────┘
+```
+
 ## Features
 
 - **5-Hour Session** — remaining % of your rolling 5-hour window
 - **7-Day Window** — remaining % of your weekly limit
 - **7-Day Opus** — remaining Opus-specific quota (if applicable)
 - **Plan type** — shows your subscription tier (Pro/Max)
-- **Adaptive theme** — auto-detects light/dark mode
 - **Smart caching** — avoids API rate limits (429) with local cache + graceful fallback
-- **Logging** — debug log at `~/.cache/claude-usage/plugin.log`
+- **Logging** — debug log for troubleshooting
 
 Color-coded at a glance: 🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
 
-## Prerequisites
+---
+
+## macOS Installation
+
+### Prerequisites
 
 | Requirement | Install |
 |---|---|
@@ -50,8 +79,6 @@ Color-coded at a glance: 🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `brew install claude-code` or `npm install -g @anthropic-ai/claude-code` |
 
 You must be **logged into Claude Code** via OAuth (i.e., you've run `claude` at least once and authenticated). The plugin reads your OAuth token from the macOS Keychain — no API key needed.
-
-## Installation
 
 ### Step 1: Install dependencies
 
@@ -86,26 +113,66 @@ chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh
 
 You should now see **🟢 XX% · 7d:XX%** in your menu bar.
 
+---
+
+## Windows Installation
+
+### Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Windows 10/11 | — |
+| PowerShell 5.1+ | Ships with Windows |
+| .NET Framework | Ships with Windows |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `npm install -g @anthropic-ai/claude-code` |
+
+You must be **logged into Claude Code** via OAuth (i.e., you've run `claude` at least once and authenticated). The monitor reads your OAuth token from `~/.claude/.credentials.json` — no API key needed.
+
+### Step 1: Clone this repo
+
+```powershell
+git clone https://github.com/haomingkoo/claude-code-monitor.git
+```
+
+### Step 2: Run the monitor
+
+**Option A** — Double-click `windows\launch-monitor.bat`
+
+**Option B** — Run from terminal:
+
+```powershell
+powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
+```
+
+A color-coded donut ring icon will appear in your system tray. Hover for a quick summary, right-click for full details.
+
+### Auto-start on login (optional)
+
+1. Press **Win + R**, type `shell:startup`, press Enter
+2. Copy `windows\launch-monitor.bat` into that folder
+
+---
+
 ## How It Works
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│ macOS       │     │ Anthropic API    │     │ SwiftBar    │
-│ Keychain    │────>│ /api/oauth/usage │────>│ Menu Bar    │
-│(OAuth token)│     │ (GET, cached)    │     │ (render)    │
+│ Credentials │     │ Anthropic API    │     │ Menu Bar /  │
+│ (Keychain / │────>│ /api/oauth/usage │────>│ System Tray │
+│  .json file)│     │ (GET, cached)    │     │ (render)    │
 └─────────────┘     └──────────────────┘     └─────────────┘
 ```
 
-1. **Auth** — Reads your Claude Code OAuth token from the macOS Keychain (`security find-generic-password`)
+1. **Auth** — Reads your Claude Code OAuth token (macOS: Keychain, Windows: `~/.claude/.credentials.json`)
 2. **Fetch** — Calls `GET https://api.anthropic.com/api/oauth/usage` with Bearer token auth
 3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` to avoid repeated API calls
 4. **Parse** — Extracts `five_hour.utilization` and `seven_day.utilization`, computes remaining (`100 - used`)
-5. **Render** — Outputs SwiftBar-formatted text with progress bars, colors, and status icons
+5. **Render** — Displays the data (macOS: SwiftBar menu bar, Windows: system tray icon + context menu)
 6. **Fallback** — On 429 or network error, displays the last cached data instead of crashing
 
 ### API Response Format
 
-The plugin reads from an unofficial (but widely used) Anthropic endpoint:
+The monitor reads from an unofficial (but widely used) Anthropic endpoint:
 
 ```json
 {
@@ -128,7 +195,7 @@ The plugin reads from an unofficial (but widely used) Anthropic endpoint:
 
 ### Refresh Interval
 
-The refresh rate is controlled by the **filename**. Rename to change it:
+**macOS:** The refresh rate is controlled by the **filename**. Rename to change it:
 
 ```bash
 cd ~/SwiftBarPlugins
@@ -136,32 +203,34 @@ cd ~/SwiftBarPlugins
 # Every 1 minute (default)
 # claude-code-monitor.1m.sh
 
-# Every 2 minutes
-mv claude-code-monitor.1m.sh claude-code-monitor.2m.sh
-
 # Every 5 minutes (conservative, recommended if you hit 429s)
 mv claude-code-monitor.1m.sh claude-code-monitor.5m.sh
 ```
 
+**Windows:** Edit `$script:PollInterval` at the top of `claude-code-monitor.ps1` (default: 60 seconds).
+
 ### Cache TTL
 
-The plugin caches API responses to prevent excessive calls. Edit the `CACHE_TTL` variable at the top of the script:
+Both versions cache API responses to prevent excessive calls. Edit the `CACHE_TTL` / `$script:CacheTTL` variable at the top of the script:
 
-```bash
-CACHE_TTL=120  # seconds — API is called at most once every 2 minutes
+```
+CACHE_TTL=120          # macOS (seconds)
+$script:CacheTTL = 120 # Windows (seconds)
 ```
 
-> Even at a 1-minute SwiftBar refresh, the API is only called when the cache expires. Between cache refreshes, the plugin re-renders from cached data.
+> Even at a 1-minute refresh, the API is only called when the cache expires. Between cache refreshes, the monitor re-renders from cached data.
 
 ## Security
 
-- Your OAuth token is read **locally** from your own macOS Keychain
+- Your OAuth token is read **locally** from your own system (macOS Keychain / Windows credentials file)
 - It is **only** sent to `api.anthropic.com` (Anthropic's own servers)
 - No tokens are written to disk or logged
 - Cache (`~/.cache/claude-usage/usage.json`) contains only usage percentages and reset timestamps
-- Log (`~/.cache/claude-usage/plugin.log`) contains only debug metadata (timestamps, status codes)
+- Logs contain only debug metadata (timestamps, status codes)
 
 ## Troubleshooting
+
+### macOS
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -172,23 +241,36 @@ CACHE_TTL=120  # seconds — API is called at most once every 2 minutes
 | Widget not showing | SwiftBar not pointing to plugin folder | Open SwiftBar preferences and set folder to `~/SwiftBarPlugins` |
 | README errors in SwiftBar | SwiftBar tried to execute README.md | Ensure `.swiftbarignore` file exists with `README.md` listed |
 
+### Windows
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| No tray icon | Script not running | Run via `launch-monitor.bat` or PowerShell command above |
+| "No data" tooltip | Not logged into Claude Code | Run `claude` in terminal and authenticate |
+| "Already running" popup | Another instance exists | Check system tray for existing icon |
+| Icon stuck on old data | Cache not expired | Right-click tray icon → **Refresh Now** |
+
 ### Viewing Logs
 
 ```bash
-# View recent log entries
+# macOS
 tail -20 ~/.cache/claude-usage/plugin.log
 
-# Watch live
-tail -f ~/.cache/claude-usage/plugin.log
+# Windows (PowerShell)
+Get-Content ~\.cache\claude-usage\monitor.log -Tail 20
 ```
 
 ### Clearing Cache
 
 ```bash
+# macOS
 rm -rf ~/.cache/claude-usage
+
+# Windows (PowerShell)
+Remove-Item ~\.cache\claude-usage -Recurse -Force
 ```
 
-The plugin will recreate the cache directory on the next run.
+The monitor will recreate the cache directory on the next run.
 
 ## License
 
