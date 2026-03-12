@@ -1,31 +1,36 @@
 # Claude Code Monitor
 
-A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time. Available for **macOS** and **Windows**.
+A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time — with pace tracking, burnout projections, and native notifications. Available for **macOS** and **Windows**.
 
 ## What It Looks Like
 
 ### macOS (SwiftBar)
 
 ```
-🟢 52% · 7d:81%                 ← menu bar (5h session · 7-day window)
-┌──────────────────────────────┐
-│ Claude Code (max)            │
-│──────────────────────────────│
-│ 🟢  5-Hour Session           │
-│ ■■■■■■■■■■□□□□□□□□□□         │
-│ 52.0% remaining              │
-│ Refills in 3h 42m            │
-│──────────────────────────────│
-│ 🟢  7-Day Window             │
-│ ■■■■■■■■■■■■■■■■□□□□         │
-│ 81.0% remaining              │
-│ Refills in 4d 12h            │
-│──────────────────────────────│
-│ Source: live                 │
-│──────────────────────────────│
-│ Refresh                      │
-│ Open log                     │
-└──────────────────────────────┘
+🟢 52% · 7d:81%                      ← menu bar
+┌─────────────────────────────────┐
+│ Claude Code (max)               │
+│─────────────────────────────────│
+│ 🟢  5-Hour Session              │
+│ ■■■■■■■■■■□□□□□□□□□□            │
+│ 52.0% remaining                 │
+│ Refills in 3h 42m (4:00 PM)    │
+│ ✅ Pace: 1.0x                   │
+│ Burns out in ~5h 12m            │
+│─────────────────────────────────│
+│ 🟢  7-Day Window                │
+│ ■■■■■■■■■■■■■■■■□□□□            │
+│ 81.0% remaining                 │
+│ Refills in 4d 12h (Mar 16)     │
+│ 🐢 Pace: 0.7x                  │
+│ Burns out in ~6d 11h            │
+│─────────────────────────────────│
+│ Source: live                    │
+│─────────────────────────────────│
+│ Refresh                         │
+│ Open log                        │
+│ Language                      > │
+└─────────────────────────────────┘
 ```
 
 ### Windows (System Tray)
@@ -56,14 +61,66 @@ A color-coded progress arc icon appears in your system tray — the arc fills ba
 
 ## Features
 
+### Rate Limit Monitoring
 - **5-Hour Session** — remaining % of your rolling 5-hour window
 - **7-Day Window** — remaining % of your weekly limit
-- **7-Day Opus** — remaining Opus-specific quota (if applicable)
-- **Plan type** — shows your subscription tier (Pro/Max)
-- **Smart caching** — avoids API rate limits (429) with local cache + graceful fallback
+- **7-Day Opus** — Opus-specific quota (shown when applicable)
+- **Null-safe** — shows "Not available yet" when data is missing instead of hiding or faking values
+
+### Smart Analytics (macOS)
+- **Local reset time** — countdown + local time (e.g., "Refills in 1h 49m (4:00 PM)")
+- **Pace indicator** — are you burning faster than sustainable?
+
+  | Icon | Pace | Meaning |
+  |------|------|---------|
+  | 🐢 | < 0.8x | Conservative — plenty of headroom |
+  | ✅ | 0.8–1.3x | On pace — sustainable usage |
+  | ⚡ | 1.3–2.0x | Fast — will run out before reset |
+  | 🔥 | > 2.0x | Burning way too fast |
+
+- **Burnout projection** — "Burns out in ~12h" based on your current rate
+
+### Notifications (macOS)
+- macOS native alerts at **50%**, **25%**, and **10%** remaining
+- Auto-resets when the window refills — no duplicate alerts
+- Configurable thresholds
+
+### Multi-Language — 6 Languages (macOS)
+Switch from the dropdown menu — no script editing needed.
+
+| Code | Language |
+|------|----------|
+| `en` | English |
+| `zh` | 中文 (Chinese) |
+| `ja` | 日本語 (Japanese) |
+| `ko` | 한국어 (Korean) |
+| `ta` | தமிழ் (Tamil) |
+| `ms` | Bahasa Melayu (Malay) |
+
+### Reliability
+- **Timezone-safe** — python3 ISO 8601 parsing handles any timezone offset; macOS `date -u` fallback
+- **Smart caching** — avoids API rate limits (429) with local cache + graceful stale data fallback
+- **Adaptive theme** — auto-detects light/dark mode with optimized color contrast (macOS)
 - **Logging** — debug log for troubleshooting
 
-Color-coded at a glance: 🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
+### At a Glance
+🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
+
+---
+
+## Important: 7-Day Window Risk
+
+The **7-day window is the real constraint** for heavy users. While the 5-hour session resets frequently, the weekly limit is a hard ceiling that only resets once per week.
+
+| Risk | Impact |
+|------|--------|
+| **No partial reset** | Resets all at once on a fixed schedule, not rolling |
+| **Shared quota** | Claude.ai web chat + Claude Code share the same weekly limit |
+| **Pace matters** | 🔥 2.0x pace = exhausting a week's quota in ~3.5 days |
+| **Pro limits are tighter** | Heavy sessions can burn through Pro weekly limits in 2–3 days |
+| **Null data possible** | Some accounts show `null` for 7-day — plugin displays "Not available yet" |
+
+**Recommendation:** Keep the 7-day pace at ✅ 1.0x or below. If you see ⚡ or 🔥 on the 7-day window, slow down to avoid a mid-week lockout.
 
 ---
 
@@ -76,6 +133,7 @@ Color-coded at a glance: 🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
 | macOS | — |
 | [SwiftBar](https://github.com/swiftbar/SwiftBar) | `brew install --cask swiftbar` |
 | [jq](https://jqlang.github.io/jq/) | `brew install jq` |
+| python3 (recommended) | `brew install python3` or Xcode CLT |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `brew install claude-code` or `npm install -g @anthropic-ai/claude-code` |
 
 You must be **logged into Claude Code** via OAuth (i.e., you've run `claude` at least once and authenticated). The plugin reads your OAuth token from the macOS Keychain — no API key needed.
@@ -93,12 +151,14 @@ brew install jq
 git clone https://github.com/haomingkoo/claude-code-monitor.git ~/SwiftBarPlugins
 ```
 
-Or if you already have a SwiftBar plugins folder, copy just the script:
+Or if you already have a SwiftBar plugins folder, copy the scripts:
 
 ```bash
 curl -o ~/SwiftBarPlugins/claude-code-monitor.1m.sh \
-  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/macos/claude-code-monitor.1m.sh
-chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh
+  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.1m.sh
+curl -o ~/SwiftBarPlugins/set-language.sh \
+  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/set-language.sh
+chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh ~/SwiftBarPlugins/set-language.sh
 ```
 
 ### Step 3: Configure SwiftBar
@@ -165,10 +225,11 @@ A color-coded progress arc icon will appear in your system tray. Hover for a qui
 
 1. **Auth** — Reads your Claude Code OAuth token (macOS: Keychain, Windows: `~/.claude/.credentials.json`)
 2. **Fetch** — Calls `GET https://api.anthropic.com/api/oauth/usage` with Bearer token auth
-3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` to avoid repeated API calls
-4. **Parse** — Extracts `five_hour.utilization` and `seven_day.utilization`, computes remaining (`100 - used`)
+3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` (TTL: 120s)
+4. **Parse** — Extracts utilization percentages, computes remaining, pace, and burnout
 5. **Render** — Displays the data (macOS: SwiftBar menu bar, Windows: system tray icon + context menu)
-6. **Fallback** — On 429 or network error, displays the last cached data instead of crashing
+6. **Notify** — Sends native alerts when thresholds are crossed (macOS)
+7. **Fallback** — On 429 or network error, displays the last cached data
 
 ### API Response Format
 
@@ -191,41 +252,68 @@ The monitor reads from an unofficial (but widely used) Anthropic endpoint:
 }
 ```
 
+### Pace Calculation (macOS)
+
+```
+ideal_usage = (elapsed / window_size) × 100%
+pace = actual_usage / ideal_usage
+```
+
+A pace of **1.0x** means you're using tokens exactly evenly across the window. Above 1.0x and you'll run out before reset.
+
+### Burnout Projection
+
+```
+time_to_burnout = (remaining% / used%) × elapsed_time
+```
+
+Simple linear projection — "if you keep doing what you're doing, when do you hit 100%?"
+
 ## Configuration
+
+### Language (macOS)
+
+Click **Language** in the dropdown menu to switch. No restart needed.
+
+Or set it manually:
+
+```bash
+echo "zh" > ~/.cache/claude-usage/language
+```
 
 ### Refresh Interval
 
-**macOS:** The refresh rate is controlled by the **filename**. Rename to change it:
+**macOS:** Controlled by the filename:
 
 ```bash
-cd ~/SwiftBarPlugins
-
-# Every 1 minute (default)
-# claude-code-monitor.1m.sh
-
-# Every 5 minutes (conservative, recommended if you hit 429s)
+# Every 5 minutes (recommended if you hit 429s)
 mv claude-code-monitor.1m.sh claude-code-monitor.5m.sh
 ```
 
 **Windows:** Edit `$script:PollInterval` at the top of `claude-code-monitor.ps1` (default: 60 seconds).
 
-### Cache TTL
+### Notification Thresholds (macOS)
 
-Both versions cache API responses to prevent excessive calls. Edit the `CACHE_TTL` / `$script:CacheTTL` variable at the top of the script:
+```bash
+# Default: alert at 50%, 25%, and 10% remaining
+NOTIFY_THRESHOLDS="50 25 10"
+```
+
+### Cache TTL
 
 ```
 CACHE_TTL=120          # macOS (seconds)
 $script:CacheTTL = 120 # Windows (seconds)
 ```
 
-> Even at a 1-minute refresh, the API is only called when the cache expires. Between cache refreshes, the monitor re-renders from cached data.
+> Even at a 1-minute refresh, the API is only called when the cache expires.
 
 ## Security
 
-- Your OAuth token is read **locally** from your own system (macOS Keychain / Windows credentials file)
-- It is **only** sent to `api.anthropic.com` (Anthropic's own servers)
-- No tokens are written to disk or logged
-- Cache (`~/.cache/claude-usage/usage.json`) contains only usage percentages and reset timestamps
+- OAuth token is read **locally** from your own system (macOS Keychain / Windows credentials file)
+- Token is **only** sent to `api.anthropic.com` (Anthropic's servers)
+- No tokens written to disk or logged
+- Cache contains only usage percentages and reset timestamps
 - Logs contain only debug metadata (timestamps, status codes)
 
 ## Troubleshooting
@@ -235,11 +323,11 @@ $script:CacheTTL = 120 # Windows (seconds)
 | Symptom | Cause | Fix |
 |---|---|---|
 | `CC: no auth` | Not logged into Claude Code | Run `claude` in terminal and authenticate |
-| `CC: no token` | Keychain entry is corrupted | Run `claude logout` then `claude` to re-authenticate |
+| `CC: no token` | Keychain entry corrupted | Run `claude logout` then `claude` to re-authenticate |
 | `CC: error` | API returned an error | Click **Open log** to see details |
-| `CC: 429` | Rate limited by Anthropic | Plugin shows stale cache automatically. Increase `CACHE_TTL` if persistent |
-| Widget not showing | SwiftBar not pointing to plugin folder | Open SwiftBar preferences and set folder to `~/SwiftBarPlugins` |
-| README errors in SwiftBar | SwiftBar tried to execute README.md | Ensure `.swiftbarignore` file exists with `README.md` listed |
+| `CC: 429` | Rate limited by Anthropic | Plugin shows stale cache. Increase `CACHE_TTL` if persistent |
+| Widget not showing | SwiftBar not configured | Open SwiftBar preferences → set folder to `~/SwiftBarPlugins` |
+| Faint text | macOS vibrancy | Already fixed in v8.0 — update to latest version |
 
 ### Windows
 
@@ -271,6 +359,15 @@ Remove-Item ~\.cache\claude-usage -Recurse -Force
 ```
 
 The monitor will recreate the cache directory on the next run.
+
+## Version History
+
+| Version | Changes |
+|---------|---------|
+| **v8.0** | Fix text legibility (macOS vibrancy), add Tamil, clickable language selector, Windows system tray version |
+| **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
+| **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |
+| **v5.0** | Initial release: 5h/7d/Opus monitoring, progress bars, adaptive theme, smart caching |
 
 ## License
 
