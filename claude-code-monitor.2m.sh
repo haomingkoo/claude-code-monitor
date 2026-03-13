@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # <xbar.title>Claude Code Usage</xbar.title>
-# <xbar.version>v9.0</xbar.version>
+# <xbar.version>v9.2</xbar.version>
 # <xbar.author>koohaoming</xbar.author>
 # <xbar.desc>Shows Claude Code remaining rate limits via OAuth endpoint</xbar.desc>
 
@@ -42,6 +42,28 @@ esac
 NOTIFY_THRESHOLDS="50 25 10"
 
 mkdir -p "$CACHE_DIR"
+
+# ============================================================
+# HELPER SCRIPTS (auto-created on first run)
+# ============================================================
+SCRIPT_DIR="$CACHE_DIR/scripts"
+mkdir -p "$SCRIPT_DIR"
+
+for lang in en zh ja ko ta ms; do
+  f="$SCRIPT_DIR/set-lang-${lang}.sh"
+  if [ ! -f "$f" ]; then
+    printf '#!/bin/bash\necho "%s" > "$HOME/.cache/claude-usage/language"\n' "$lang" > "$f"
+    chmod +x "$f"
+  fi
+done
+
+for rate in 2m 5m 10m; do
+  f="$SCRIPT_DIR/set-rate-${rate}.sh"
+  if [ ! -f "$f" ]; then
+    printf '#!/bin/bash\necho "%s" > "$HOME/.cache/claude-usage/refresh_rate"\n' "$rate" > "$f"
+    chmod +x "$f"
+  fi
+done
 
 # ============================================================
 # TRANSLATIONS
@@ -175,7 +197,11 @@ if ! command -v /opt/homebrew/bin/jq &>/dev/null && ! command -v /usr/local/bin/
   log "ERROR" "jq not found"
   exit 0
 fi
-JQ=$(/opt/homebrew/bin/jq 2>/dev/null && echo /opt/homebrew/bin/jq || echo /usr/local/bin/jq)
+if [ -x /opt/homebrew/bin/jq ]; then
+  JQ=/opt/homebrew/bin/jq
+else
+  JQ=/usr/local/bin/jq
+fi
 
 # ============================================================
 # AUTH

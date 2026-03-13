@@ -167,15 +167,15 @@ brew install jq
 git clone https://github.com/haomingkoo/claude-code-monitor.git ~/SwiftBarPlugins
 ```
 
-Or if you already have a SwiftBar plugins folder, copy the scripts:
+Or if you already have a SwiftBar plugins folder, copy the script:
 
 ```bash
 curl -o ~/SwiftBarPlugins/claude-code-monitor.2m.sh \
   https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.2m.sh
-curl -o ~/SwiftBarPlugins/set-language.sh \
-  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/set-language.sh
-chmod +x ~/SwiftBarPlugins/claude-code-monitor.2m.sh ~/SwiftBarPlugins/set-language.sh
+chmod +x ~/SwiftBarPlugins/claude-code-monitor.2m.sh
 ```
+
+> Helper scripts for language and refresh rate selection are auto-created in `~/.cache/claude-usage/scripts/` on first run — no manual setup needed.
 
 ### Step 3: Configure SwiftBar
 
@@ -430,6 +430,7 @@ The monitor will recreate the cache directory on the next run.
 
 | Version | Changes |
 |---------|---------|
+| **v9.2** | Auto-create helper scripts on first run (zero manual setup). Add MIT LICENSE. Clean up repo structure. Fix jq detection and cache TTL values. |
 | **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
 | **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
 | **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
