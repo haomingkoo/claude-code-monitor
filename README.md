@@ -29,7 +29,9 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 │─────────────────────────────────│
 │ Refresh                         │
 │ Open log                        │
-│ Language                      > │
+│─────────────────────────────────│
+│ 🌐 Language                   > │
+│ ⏱ Refresh Rate                > │
 └─────────────────────────────────┘
 ```
 
@@ -168,11 +170,11 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git ~/SwiftBarPlugin
 Or if you already have a SwiftBar plugins folder, copy the scripts:
 
 ```bash
-curl -o ~/SwiftBarPlugins/claude-code-monitor.1m.sh \
-  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.1m.sh
+curl -o ~/SwiftBarPlugins/claude-code-monitor.2m.sh \
+  https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/claude-code-monitor.2m.sh
 curl -o ~/SwiftBarPlugins/set-language.sh \
   https://raw.githubusercontent.com/haomingkoo/claude-code-monitor/main/set-language.sh
-chmod +x ~/SwiftBarPlugins/claude-code-monitor.1m.sh ~/SwiftBarPlugins/set-language.sh
+chmod +x ~/SwiftBarPlugins/claude-code-monitor.2m.sh ~/SwiftBarPlugins/set-language.sh
 ```
 
 ### Step 3: Configure SwiftBar
@@ -239,7 +241,7 @@ Two alternating icons will appear in your system tray — a donut ring (5h) and 
 
 1. **Auth** — Reads your Claude Code OAuth token (macOS: Keychain, Windows: `~/.claude/.credentials.json`)
 2. **Fetch** — Calls `GET https://api.anthropic.com/api/oauth/usage` with Bearer token auth
-3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` (TTL: 120s)
+3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` (TTL: varies by refresh rate)
 4. **Parse** — Extracts utilization percentages, computes remaining, pace, and burnout
 5. **Render** — Displays the data (macOS: SwiftBar menu bar, Windows: system tray icon + context menu)
 6. **Notify** — Sends native alerts when thresholds are crossed (macOS + Windows)
@@ -299,13 +301,16 @@ echo "zh" > ~/.cache/claude-usage/language
 "zh" | Set-Content ~\.cache\claude-usage\language
 ```
 
-### Refresh Interval
+### Refresh Rate (macOS)
 
-**macOS:** Controlled by the filename:
+Select from the **⏱ Refresh Rate** flyout submenu in the dropdown. Options: 30s, 1m, 2m, 5m, 10m. Default: **2m**.
+
+This controls the cache TTL (how often the API is called). The plugin filename stays fixed at `.2m.sh` — do **not** rename it, as SwiftBar will lose track of the plugin.
+
+Or set it manually:
 
 ```bash
-# Every 5 minutes (recommended if you hit 429s)
-mv claude-code-monitor.1m.sh claude-code-monitor.5m.sh
+echo "5m" > ~/.cache/claude-usage/refresh_rate
 ```
 
 **Windows:** Right-click tray icon → **Settings** → **Data Refresh Interval** (30s / 1m / 2m / 5m). Or edit `$script:PollInterval` in the script.
@@ -322,12 +327,18 @@ $script:NotifyThresholds = @(50, 25, 10)
 
 ### Cache TTL
 
+Cache TTL is set automatically based on your refresh rate. The API is only called when the cache expires, and on errors the cache timestamp is refreshed to prevent repeated failing calls.
+
 ```
-CACHE_TTL=120          # macOS (seconds)
-$script:CacheTTL = 120 # Windows (seconds)
+$script:CacheTTL = 120 # Windows (seconds) — edit in claude-code-monitor.ps1
 ```
 
-> Even at a 1-minute refresh, the API is only called when the cache expires.
+| Refresh Rate | Cache TTL | API calls/hour |
+|---|---|---|
+| 30s–1m | 120s | ~30 |
+| 2m | 180s | ~20 |
+| 5m | 600s | ~6 |
+| 10m | 900s | ~4 |
 
 ## Security
 
@@ -346,7 +357,7 @@ $script:CacheTTL = 120 # Windows (seconds)
 | `CC: no auth` | Not logged into Claude Code | Run `claude` in terminal and authenticate |
 | `CC: no token` | Keychain entry corrupted | Run `claude logout` then `claude` to re-authenticate |
 | `CC: error` | API returned an error | Click **Open log** to see details |
-| `CC: 429` | Rate limited by Anthropic | Plugin shows stale cache. Increase `CACHE_TTL` if persistent |
+| `CC: 429` | Rate limited by Anthropic | Wait a few minutes — the plugin backs off automatically. If persistent, see [Rate Limit Death Spiral](#rate-limit-death-spiral-fixed-in-v90) below |
 | Widget not showing | SwiftBar not configured | Open SwiftBar preferences → set folder to `~/SwiftBarPlugins` |
 | Faint text | macOS vibrancy | Already fixed in v8.0 — update to latest version |
 
@@ -358,6 +369,39 @@ $script:CacheTTL = 120 # Windows (seconds)
 | "No data" tooltip | Not logged into Claude Code | Run `claude` in terminal and authenticate |
 | "Already running" popup | Another instance exists | Check system tray for existing icon |
 | Icon stuck on old data | Cache not expired | Right-click tray icon → **Refresh Now** |
+
+### Rate Limit Death Spiral (Fixed in v9.0)
+
+**Symptom:** The widget permanently shows `CC: 429` or `Source: rate limited — showing stale data`, and never recovers — even after waiting.
+
+**Root cause (v8.0 and earlier):** When the Anthropic API returned 429 (rate limited), the plugin retried on every run without backing off. Each failed retry counted against the rate limit, creating an infinite loop:
+
+```
+API call → 429 → no backoff → next run → API call → 429 → repeat forever
+```
+
+This was caused by a bug where the cache file's timestamp was never updated on errors, so the cache-TTL check always saw "cache expired" and made another API call.
+
+**Fix (v9.0):** The plugin now refreshes the cache timestamp on 429/error responses, so subsequent runs serve cached data instead of hammering the API. The rate limit recovers naturally.
+
+**If you're stuck on 429:**
+
+1. **Wait 5 minutes** — the v9.0 backoff logic will recover automatically
+2. **If still stuck after 10+ minutes**, your OAuth token's rate limit may be exhausted. Re-authenticate to get a fresh token:
+   ```bash
+   claude auth logout
+   claude auth login
+   ```
+3. **Reduce refresh rate** — select a slower rate from the ⏱ Refresh Rate menu (5m or 10m recommended)
+4. **Nuclear option** — clear everything and start fresh:
+   ```bash
+   rm -rf ~/.cache/claude-usage
+   claude auth logout
+   claude auth login
+   ```
+   Then restart SwiftBar.
+
+> **Note:** If you recently logged into Claude Code on another device, your existing token may still be valid but could have a depleted rate limit quota. Re-authenticating on your current device is the quickest fix.
 
 ### Viewing Logs
 
@@ -385,6 +429,7 @@ The monitor will recreate the cache directory on the next run.
 
 | Version | Changes |
 |---------|---------|
+| **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (30s/1m/2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
 | **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
 | **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
 | **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # <xbar.title>Claude Code Usage</xbar.title>
-# <xbar.version>v8.0</xbar.version>
+# <xbar.version>v9.0</xbar.version>
 # <xbar.author>koohaoming</xbar.author>
 # <xbar.desc>Shows Claude Code remaining rate limits via OAuth endpoint</xbar.desc>
 
@@ -12,7 +12,6 @@ CACHE_DIR="$HOME/.cache/claude-usage"
 CACHE_FILE="$CACHE_DIR/usage.json"
 LOG_FILE="$CACHE_DIR/plugin.log"
 NOTIFY_STATE="$CACHE_DIR/notify_state"
-CACHE_TTL=120  # seconds — don't call API if cache is fresher than this
 
 # Language: saved in config file, changeable from dropdown menu
 LANG_FILE="$CACHE_DIR/language"
@@ -21,6 +20,24 @@ if [ -f "$LANG_FILE" ]; then
 else
   LANGUAGE="${LANGUAGE:-en}"
 fi
+
+# Refresh rate: saved in config file, changeable from dropdown menu
+RATE_FILE="$CACHE_DIR/refresh_rate"
+if [ -f "$RATE_FILE" ]; then
+  REFRESH_RATE=$(cat "$RATE_FILE")
+else
+  REFRESH_RATE="2m"
+fi
+
+# Set CACHE_TTL based on refresh rate (minimum 120s to avoid API rate limits)
+case "$REFRESH_RATE" in
+  30s) CACHE_TTL=120 ;;
+  1m)  CACHE_TTL=120 ;;
+  2m)  CACHE_TTL=180 ;;
+  5m)  CACHE_TTL=600 ;;
+  10m) CACHE_TTL=900 ;;
+  *)   CACHE_TTL=600 ;;
+esac
 
 # Notification thresholds (remaining %) — alerts when crossing below these
 NOTIFY_THRESHOLDS="50 25 10"
@@ -40,7 +57,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="未登录 Claude Code"; L_NO_TOKEN="无法解析 OAuth 令牌"
     L_BAD_DATA="API 返回数据无效"; L_API_ERROR="API 错误"
     L_NEED_JQ="需要安装 jq"; L_INSTALL_JQ="安装 jq"
-    L_NOTIFY_TITLE="Claude Code 用量警告"
+    L_NOTIFY_TITLE="Claude Code 用量警告"; L_REFRESH_RATE="刷新频率"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -57,7 +74,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="Claude Code 未ログイン"; L_NO_TOKEN="OAuthトークン解析失敗"
     L_BAD_DATA="APIレスポンスが無効"; L_API_ERROR="APIエラー"
     L_NEED_JQ="jqが必要です"; L_INSTALL_JQ="jqをインストール"
-    L_NOTIFY_TITLE="Claude Code 使用量警告"
+    L_NOTIFY_TITLE="Claude Code 使用量警告"; L_REFRESH_RATE="更新頻度"
     fmt_remaining() { echo "$L_REMAINING ${1}%"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -74,7 +91,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="Claude Code 미로그인"; L_NO_TOKEN="OAuth 토큰 파싱 실패"
     L_BAD_DATA="API 응답 오류"; L_API_ERROR="API 오류"
     L_NEED_JQ="jq 필요"; L_INSTALL_JQ="jq 설치"
-    L_NOTIFY_TITLE="Claude Code 사용량 경고"
+    L_NOTIFY_TITLE="Claude Code 사용량 경고"; L_REFRESH_RATE="새로고침 주기"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -91,7 +108,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="Claude Code உள்நுழையவில்லை"; L_NO_TOKEN="OAuth டோக்கன் பிழை"
     L_BAD_DATA="API பதில் தவறானது"; L_API_ERROR="API பிழை"
     L_NEED_JQ="jq தேவை"; L_INSTALL_JQ="jq நிறுவு"
-    L_NOTIFY_TITLE="Claude Code பயன்பாட்டு எச்சரிக்கை"
+    L_NOTIFY_TITLE="Claude Code பயன்பாட்டு எச்சரிக்கை"; L_REFRESH_RATE="புதுப்பிப்பு வீதம்"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -108,7 +125,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="Belum log masuk Claude Code"; L_NO_TOKEN="Tidak dapat menghurai token OAuth"
     L_BAD_DATA="Respons API tidak sah"; L_API_ERROR="Ralat API"
     L_NEED_JQ="Perlu jq"; L_INSTALL_JQ="Pasang jq"
-    L_NOTIFY_TITLE="Amaran Penggunaan Claude Code"
+    L_NOTIFY_TITLE="Amaran Penggunaan Claude Code"; L_REFRESH_RATE="Kadar muat semula"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -125,7 +142,7 @@ case "$LANGUAGE" in
     L_NO_AUTH="Not logged into Claude Code"; L_NO_TOKEN="Could not parse OAuth token"
     L_BAD_DATA="Invalid response from API"; L_API_ERROR="API error"
     L_NEED_JQ="Need jq"; L_INSTALL_JQ="Install jq"
-    L_NOTIFY_TITLE="Claude Code Usage Warning"
+    L_NOTIFY_TITLE="Claude Code Usage Warning"; L_REFRESH_RATE="Refresh Rate"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
@@ -215,6 +232,7 @@ else
     log "WARN" "Rate limited (HTTP 429) — using stale cache"
     rm -f "$CACHE_FILE.tmp"
     if [ -f "$CACHE_FILE" ]; then
+      touch "$CACHE_FILE"  # refresh mtime so CACHE_TTL prevents further API calls
       USAGE=$(cat "$CACHE_FILE")
       FETCH_STATUS="rate limited — showing stale data"
     else
@@ -229,6 +247,7 @@ else
     log "ERROR" "API call failed (HTTP $HTTP_CODE)"
     rm -f "$CACHE_FILE.tmp"
     if [ -f "$CACHE_FILE" ]; then
+      touch "$CACHE_FILE"  # refresh mtime so CACHE_TTL prevents further API calls
       USAGE=$(cat "$CACHE_FILE")
       FETCH_STATUS="error (HTTP $HTTP_CODE) — showing stale data"
     else
@@ -678,18 +697,26 @@ echo "$L_SOURCE: ${FETCH_STATUS} | size=$S $(c "$TEXT_SECONDARY") bash='true' te
 echo "---"
 echo "$L_REFRESH | refresh=true $(c "$TEXT_SECONDARY") size=$S"
 echo "$L_OPEN_LOG | bash='open' param1='$LOG_FILE' terminal=false $(c "$TEXT_SECONDARY") size=$S"
-
-# Language selector — scripts outside plugin dir, no params needed
 echo "---"
+# Refresh rate — flyout submenu
+RD="$HOME/.cache/claude-usage/scripts"
+rate_mark() { [ "$REFRESH_RATE" = "$1" ] && echo "✓ " || echo ""; }
+echo "⏱ $L_REFRESH_RATE: ${REFRESH_RATE} | size=$S $(c "$TEXT_SECONDARY")"
+echo "--$(rate_mark 30s)30s | bash='$RD/set-rate-30s.sh' terminal=false refresh=true size=$S"
+echo "--$(rate_mark 1m)1m | bash='$RD/set-rate-1m.sh' terminal=false refresh=true size=$S"
+echo "--$(rate_mark 2m)2m | bash='$RD/set-rate-2m.sh' terminal=false refresh=true size=$S"
+echo "--$(rate_mark 5m)5m | bash='$RD/set-rate-5m.sh' terminal=false refresh=true size=$S"
+echo "--$(rate_mark 10m)10m | bash='$RD/set-rate-10m.sh' terminal=false refresh=true size=$S"
+# Language — flyout submenu
 lang_mark() { [ "$LANGUAGE" = "$1" ] && echo "✓ " || echo ""; }
 LD="$HOME/.cache/claude-usage/scripts"
-echo "🌐 Language (wait a few seconds after selecting) | size=$S $(c "$TEXT_SECONDARY") bash='true' terminal=false"
-echo "$(lang_mark en)English | bash='$LD/set-lang-en.sh' terminal=false refresh=true size=$S"
-echo "$(lang_mark zh)中文 | bash='$LD/set-lang-zh.sh' terminal=false refresh=true size=$S"
-echo "$(lang_mark ja)日本語 | bash='$LD/set-lang-ja.sh' terminal=false refresh=true size=$S"
-echo "$(lang_mark ko)한국어 | bash='$LD/set-lang-ko.sh' terminal=false refresh=true size=$S"
-echo "$(lang_mark ta)தமிழ் | bash='$LD/set-lang-ta.sh' terminal=false refresh=true size=$S"
-echo "$(lang_mark ms)Bahasa Melayu | bash='$LD/set-lang-ms.sh' terminal=false refresh=true size=$S"
+echo "🌐 Language | size=$S $(c "$TEXT_SECONDARY")"
+echo "--$(lang_mark en)English | bash='$LD/set-lang-en.sh' terminal=false refresh=true size=$S"
+echo "--$(lang_mark zh)中文 | bash='$LD/set-lang-zh.sh' terminal=false refresh=true size=$S"
+echo "--$(lang_mark ja)日本語 | bash='$LD/set-lang-ja.sh' terminal=false refresh=true size=$S"
+echo "--$(lang_mark ko)한국어 | bash='$LD/set-lang-ko.sh' terminal=false refresh=true size=$S"
+echo "--$(lang_mark ta)தமிழ் | bash='$LD/set-lang-ta.sh' terminal=false refresh=true size=$S"
+echo "--$(lang_mark ms)Bahasa Melayu | bash='$LD/set-lang-ms.sh' terminal=false refresh=true size=$S"
 
 # ============================================================
 # NOTIFICATIONS (run after render so UI updates immediately)
