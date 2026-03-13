@@ -14,15 +14,15 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 │ 🟢  5-Hour Session              │
 │ ■■■■■■■■■■□□□□□□□□□□            │
 │ 52.0% remaining                 │
-│ Refills in 3h 42m (4:00 PM)    │
+│ Refills in 3h 42m (4:00 PM)     │
 │ ✅ Pace: 1.0x                   │
 │ Burns out in ~5h 12m            │
 │─────────────────────────────────│
 │ 🟢  7-Day Window                │
 │ ■■■■■■■■■■■■■■■■□□□□            │
 │ 81.0% remaining                 │
-│ Refills in 4d 12h (Mar 16)     │
-│ 🐢 Pace: 0.7x                  │
+│ Refills in 4d 12h (Mar 16)      │
+│ 🐢 Pace: 0.7x                   │
 │ Burns out in ~6d 11h            │
 │─────────────────────────────────│
 │ Source: live                    │
@@ -41,18 +41,18 @@ Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hou
 ┌─────────────────────────────────┐
 │ Claude Code (max)               │
 │─────────────────────────────────│
-│ 🟢  5-Hour Session  [donut]    │
+│ 🟢  5-Hour Session  [donut]     │
 │ ■■■■■■■■■■□□□□□□□□□□            │
 │ 52% remaining                   │
-│ Refills in 3h 42m (3:49 PM)    │
+│ Refills in 3h 42m (3:49 PM)     │
 │ ✅ Pace: 1.0x                   │
 │ Burns out in ~5h 12m            │
 │─────────────────────────────────│
-│ 🟢  7-Day Window  [bar]        │
+│ 🟢  7-Day Window  [bar]         │
 │ ■■■■■■■■■■■■■■■■□□□□            │
 │ 81% remaining                   │
-│ Refills in 4d 12h (Mar 16)     │
-│ 🐢 Pace: 0.7x                  │
+│ Refills in 4d 12h (Mar 16)      │
+│ 🐢 Pace: 0.7x                   │
 │ Burns out in ~6d 11h            │
 │─────────────────────────────────│
 │ Source: live                    │
