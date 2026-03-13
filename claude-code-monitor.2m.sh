@@ -29,14 +29,13 @@ else
   REFRESH_RATE="2m"
 fi
 
-# Set CACHE_TTL based on refresh rate (minimum 120s to avoid API rate limits)
+# Set CACHE_TTL based on refresh rate
+# Note: SwiftBar runs this script every 2m (.2m.sh), so rates faster than 2m are not possible.
 case "$REFRESH_RATE" in
-  30s) CACHE_TTL=120 ;;
-  1m)  CACHE_TTL=120 ;;
-  2m)  CACHE_TTL=180 ;;
-  5m)  CACHE_TTL=600 ;;
-  10m) CACHE_TTL=900 ;;
-  *)   CACHE_TTL=600 ;;
+  2m)  CACHE_TTL=120 ;;
+  5m)  CACHE_TTL=300 ;;
+  10m) CACHE_TTL=600 ;;
+  *)   CACHE_TTL=120 ;;
 esac
 
 # Notification thresholds (remaining %) — alerts when crossing below these
@@ -702,8 +701,6 @@ echo "---"
 RD="$HOME/.cache/claude-usage/scripts"
 rate_mark() { [ "$REFRESH_RATE" = "$1" ] && echo "✓ " || echo ""; }
 echo "⏱ $L_REFRESH_RATE: ${REFRESH_RATE} | size=$S $(c "$TEXT_SECONDARY")"
-echo "--$(rate_mark 30s)30s | bash='$RD/set-rate-30s.sh' terminal=false refresh=true size=$S"
-echo "--$(rate_mark 1m)1m | bash='$RD/set-rate-1m.sh' terminal=false refresh=true size=$S"
 echo "--$(rate_mark 2m)2m | bash='$RD/set-rate-2m.sh' terminal=false refresh=true size=$S"
 echo "--$(rate_mark 5m)5m | bash='$RD/set-rate-5m.sh' terminal=false refresh=true size=$S"
 echo "--$(rate_mark 10m)10m | bash='$RD/set-rate-10m.sh' terminal=false refresh=true size=$S"

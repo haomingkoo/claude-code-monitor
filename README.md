@@ -303,7 +303,7 @@ echo "zh" > ~/.cache/claude-usage/language
 
 ### Refresh Rate (macOS)
 
-Select from the **⏱ Refresh Rate** flyout submenu in the dropdown. Options: 30s, 1m, 2m, 5m, 10m. Default: **2m**.
+Select from the **⏱ Refresh Rate** flyout submenu in the dropdown. Options: 2m, 5m, 10m. Default: **2m**.
 
 This controls the cache TTL (how often the API is called). The plugin filename stays fixed at `.2m.sh` — do **not** rename it, as SwiftBar will lose track of the plugin.
 
@@ -335,10 +335,11 @@ $script:CacheTTL = 120 # Windows (seconds) — edit in claude-code-monitor.ps1
 
 | Refresh Rate | Cache TTL | API calls/hour |
 |---|---|---|
-| 30s–1m | 120s | ~30 |
-| 2m | 180s | ~20 |
-| 5m | 600s | ~6 |
-| 10m | 900s | ~4 |
+| 2m | 120s | ~30 |
+| 5m | 300s | ~12 |
+| 10m | 600s | ~6 |
+
+> **Note:** The plugin file is `.2m.sh`, so SwiftBar runs the script every 2 minutes. The Cache TTL controls how often the API is actually called — if the cache hasn't expired, the run uses cached data.
 
 ## Security
 
@@ -429,7 +430,7 @@ The monitor will recreate the cache directory on the next run.
 
 | Version | Changes |
 |---------|---------|
-| **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (30s/1m/2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
+| **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
 | **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
 | **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
 | **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |
