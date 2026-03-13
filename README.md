@@ -35,28 +35,34 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 
 ### Windows (System Tray)
 
-A color-coded progress arc icon appears in your system tray — the arc fills based on remaining %. Right-click for details:
+Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hour session and a **horizontal bar** for the 7-day window. Left-click or right-click for the full dropdown:
 
 ```
-┌──────────────────────────────┐
-│ Claude Code (max)            │
-│──────────────────────────────│
-│ 🟢  5-Hour Session           │
-│ ■■■■■■■■■■□□□□□□□□□□         │
-│ 52% remaining                │
-│ Refills in 3h 42m            │
-│──────────────────────────────│
-│ 🟢  7-Day Window             │
-│ ■■■■■■■■■■■■■■■■□□□□         │
-│ 81% remaining                │
-│ Refills in 4d 12h            │
-│──────────────────────────────│
-│ Source: live                 │
-│──────────────────────────────│
-│ Refresh Now                  │
-│ Open Log                     │
-│ Exit                         │
-└──────────────────────────────┘
+┌─────────────────────────────────┐
+│ Claude Code (max)               │
+│─────────────────────────────────│
+│ 🟢  5-Hour Session  [donut]    │
+│ ■■■■■■■■■■□□□□□□□□□□            │
+│ 52% remaining                   │
+│ Refills in 3h 42m (3:49 PM)    │
+│ ✅ Pace: 1.0x                   │
+│ Burns out in ~5h 12m            │
+│─────────────────────────────────│
+│ 🟢  7-Day Window  [bar]        │
+│ ■■■■■■■■■■■■■■■■□□□□            │
+│ 81% remaining                   │
+│ Refills in 4d 12h (Mar 16)     │
+│ 🐢 Pace: 0.7x                  │
+│ Burns out in ~6d 11h            │
+│─────────────────────────────────│
+│ Source: live                    │
+│─────────────────────────────────│
+│ Refresh Now                     │
+│ Open Log                        │
+│ 🌐 Language                  >  │
+│ ⚙ Settings                   >  │
+│ Exit                            │
+└─────────────────────────────────┘
 ```
 
 ## Features
@@ -67,7 +73,7 @@ A color-coded progress arc icon appears in your system tray — the arc fills ba
 - **7-Day Opus** — Opus-specific quota (shown when applicable)
 - **Null-safe** — shows "Not available yet" when data is missing instead of hiding or faking values
 
-### Smart Analytics (macOS)
+### Smart Analytics (macOS + Windows)
 - **Local reset time** — countdown + local time (e.g., "Refills in 1h 49m (4:00 PM)")
 - **Pace indicator** — are you burning faster than sustainable?
 
@@ -80,12 +86,20 @@ A color-coded progress arc icon appears in your system tray — the arc fills ba
 
 - **Burnout projection** — "Burns out in ~12h" based on your current rate
 
-### Notifications (macOS)
-- macOS native alerts at **50%**, **25%**, and **10%** remaining
+### Notifications (macOS + Windows)
+- Native alerts at **50%**, **25%**, and **10%** remaining
+- macOS: notification center alerts with sound · Windows: balloon tip notifications
 - Auto-resets when the window refills — no duplicate alerts
 - Configurable thresholds
 
-### Multi-Language — 6 Languages (macOS)
+### Dual Rotating Icons (Windows)
+The system tray alternates between two icon shapes for at-a-glance monitoring:
+- **Donut ring** — 5-hour session remaining %
+- **Horizontal bar** — 7-day window remaining %
+
+Rotation speed is adjustable from **Settings > Icon Rotation Speed** (2s / 4s / 8s / 15s).
+
+### Multi-Language — 6 Languages (macOS + Windows)
 Switch from the dropdown menu — no script editing needed.
 
 | Code | Language |
@@ -204,7 +218,7 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
 ```
 
-A color-coded progress arc icon will appear in your system tray. Hover for a quick summary, right-click for full details.
+Two alternating icons will appear in your system tray — a donut ring (5h) and a bar (7d). Left-click or right-click for the full dropdown with pace, burnout, and language options.
 
 ### Auto-start on login (optional)
 
@@ -228,7 +242,7 @@ A color-coded progress arc icon will appear in your system tray. Hover for a qui
 3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` (TTL: 120s)
 4. **Parse** — Extracts utilization percentages, computes remaining, pace, and burnout
 5. **Render** — Displays the data (macOS: SwiftBar menu bar, Windows: system tray icon + context menu)
-6. **Notify** — Sends native alerts when thresholds are crossed (macOS)
+6. **Notify** — Sends native alerts when thresholds are crossed (macOS + Windows)
 7. **Fallback** — On 429 or network error, displays the last cached data
 
 ### API Response Format
@@ -271,14 +285,18 @@ Simple linear projection — "if you keep doing what you're doing, when do you h
 
 ## Configuration
 
-### Language (macOS)
+### Language (macOS + Windows)
 
 Click **Language** in the dropdown menu to switch. No restart needed.
 
 Or set it manually:
 
 ```bash
+# macOS
 echo "zh" > ~/.cache/claude-usage/language
+
+# Windows (PowerShell)
+"zh" | Set-Content ~\.cache\claude-usage\language
 ```
 
 ### Refresh Interval
@@ -290,13 +308,16 @@ echo "zh" > ~/.cache/claude-usage/language
 mv claude-code-monitor.1m.sh claude-code-monitor.5m.sh
 ```
 
-**Windows:** Edit `$script:PollInterval` at the top of `claude-code-monitor.ps1` (default: 60 seconds).
+**Windows:** Right-click tray icon → **Settings** → **Data Refresh Interval** (30s / 1m / 2m / 5m). Or edit `$script:PollInterval` in the script.
 
-### Notification Thresholds (macOS)
+### Notification Thresholds (macOS + Windows)
 
 ```bash
-# Default: alert at 50%, 25%, and 10% remaining
+# macOS — edit in script
 NOTIFY_THRESHOLDS="50 25 10"
+
+# Windows — edit in script
+$script:NotifyThresholds = @(50, 25, 10)
 ```
 
 ### Cache TTL
@@ -364,7 +385,7 @@ The monitor will recreate the cache directory on the next run.
 
 | Version | Changes |
 |---------|---------|
-| **v8.0** | Fix text legibility (macOS vibrancy), add Tamil, clickable language selector, Windows system tray version |
+| **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
 | **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
 | **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |
 | **v5.0** | Initial release: 5h/7d/Opus monitoring, progress bars, adaptive theme, smart caching |
