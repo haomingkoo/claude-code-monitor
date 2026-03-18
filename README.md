@@ -212,7 +212,7 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 
 ### Step 2: Run the monitor
 
-**Option A** — Double-click `windows\launch-monitor.bat`
+**Option A** — Double-click `windows\launch-monitor.bat` (or `windows\launch-monitor.vbs`)
 
 **Option B** — Run from terminal:
 
@@ -220,12 +220,14 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
 ```
 
+> **Note:** The `.bat` and `.vbs` launchers run PowerShell completely in the background — no CMD window will remain open. The `.vbs` launcher uses `WScript.Shell.Run(..., 0, False)` for a fully invisible launch.
+
 Two alternating icons will appear in your system tray — a donut ring (5h) and a bar (7d). Left-click or right-click for the full dropdown with pace, burnout, and language options.
 
 ### Auto-start on login (optional)
 
 1. Press **Win + R**, type `shell:startup`, press Enter
-2. Copy `windows\launch-monitor.bat` into that folder (edit the path inside if needed)
+2. Copy `windows\launch-monitor.vbs` into that folder (edit the script path inside if needed)
 
 ---
 
@@ -366,6 +368,7 @@ $script:CacheTTL = 120 # Windows (seconds) — edit in claude-code-monitor.ps1
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| CMD window stays open | Using old `.bat` without VBS | Update to v8.1 — the `.bat` now delegates to `launch-monitor.vbs` for silent launch |
 | No tray icon | Script not running | Run via `launch-monitor.bat` or PowerShell command above |
 | "No data" tooltip | Not logged into Claude Code | Run `claude` in terminal and authenticate |
 | "Already running" popup | Another instance exists | Check system tray for existing icon |
@@ -432,6 +435,7 @@ The monitor will recreate the cache directory on the next run.
 |---------|---------|
 | **v9.2** | Auto-create helper scripts on first run (zero manual setup). Add MIT LICENSE. Clean up repo structure. Fix jq detection and cache TTL values. |
 | **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
+| **v8.1** | Windows: fix CMD window staying open on launch — use VBS silent launcher for zero-window startup |
 | **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
 | **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
 | **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |
