@@ -7,32 +7,31 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 ### macOS (SwiftBar)
 
 ```
-🟢 52% · 7d:81%                      ← menu bar
-┌─────────────────────────────────┐
-│ Claude Code (max)               │
-│─────────────────────────────────│
-│ 🟢  5-Hour Session              │
-│ ■■■■■■■■■■□□□□□□□□□□            │
-│ 52.0% remaining                 │
-│ Refills in 3h 42m (4:00 PM)     │
-│ ✅ Pace: 1.0x                   │
-│ Burns out in ~5h 12m            │
-│─────────────────────────────────│
-│ 🟢  7-Day Window                │
-│ ■■■■■■■■■■■■■■■■□□□□            │
-│ 81.0% remaining                 │
-│ Refills in 4d 12h (Mar 16)      │
-│ 🐢 Pace: 0.7x                   │
-│ Burns out in ~6d 11h            │
-│─────────────────────────────────│
-│ Source: live                    │
-│─────────────────────────────────│
-│ Refresh                         │
-│ Open log                        │
-│─────────────────────────────────│
-│ 🌐 Language                   > │
-│ ⏱ Refresh Rate                > │
-└─────────────────────────────────┘
+  52% · 7d:81%                         <- menu bar
+
+  Claude Code (max)
+  ---------------------------------
+  5-Hour Session
+  ||||||||||||..........
+  52.0% remaining
+  Refills in 3h 42m (4:00 PM)
+  Pace: 1.0x
+  Burns out in ~5h 12m
+  ---------------------------------
+  7-Day Window
+  ||||||||||||||||....
+  81.0% remaining
+  Refills in 4d 12h (Mar 16)
+  Pace: 0.7x
+  Burns out in ~6d 11h
+  ---------------------------------
+  Source: live
+  ---------------------------------
+  Refresh
+  Open log
+  ---------------------------------
+  Language                          >
+  Refresh Rate                      >
 ```
 
 ### Windows (System Tray)
@@ -40,31 +39,29 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hour session and a **horizontal bar** for the 7-day window. Left-click or right-click for the full dropdown:
 
 ```
-┌─────────────────────────────────┐
-│ Claude Code (max)               │
-│─────────────────────────────────│
-│ 🟢  5-Hour Session  [donut]     │
-│ ■■■■■■■■■■□□□□□□□□□□            │
-│ 52% remaining                   │
-│ Refills in 3h 42m (3:49 PM)     │
-│ ✅ Pace: 1.0x                   │
-│ Burns out in ~5h 12m            │
-│─────────────────────────────────│
-│ 🟢  7-Day Window  [bar]         │
-│ ■■■■■■■■■■■■■■■■□□□□            │
-│ 81% remaining                   │
-│ Refills in 4d 12h (Mar 16)      │
-│ 🐢 Pace: 0.7x                   │
-│ Burns out in ~6d 11h            │
-│─────────────────────────────────│
-│ Source: live                    │
-│─────────────────────────────────│
-│ Refresh Now                     │
-│ Open Log                        │
-│ 🌐 Language                  >  │
-│ ⚙ Settings                   >  │
-│ Exit                            │
-└─────────────────────────────────┘
+  Claude Code (max)
+  ---------------------------------
+  5-Hour Session  [donut icon]
+  ||||||||||||..........
+  52% remaining
+  Refills in 3h 42m (3:49 PM)
+  Pace: 1.0x
+  Burns out in ~5h 12m
+  ---------------------------------
+  7-Day Window  [bar icon]
+  ||||||||||||||||....
+  81% remaining
+  Refills in 4d 12h (Mar 16)
+  Pace: 0.7x
+  Burns out in ~6d 11h
+  ---------------------------------
+  Source: live
+  ---------------------------------
+  Refresh Now
+  Open Log
+  Language                          >
+  Settings                          >
+  Exit
 ```
 
 ## Features
