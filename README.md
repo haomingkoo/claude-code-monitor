@@ -212,7 +212,7 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 
 ### Step 2: Run the monitor
 
-**Option A** — Double-click `windows\launch-monitor.bat` (or `windows\launch-monitor.vbs`)
+**Option A** — Double-click `windows\launch-monitor.bat`
 
 **Option B** — Run from terminal:
 
@@ -220,14 +220,14 @@ git clone https://github.com/haomingkoo/claude-code-monitor.git
 powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
 ```
 
-> **Note:** The `.bat` and `.vbs` launchers run PowerShell completely in the background — no CMD window will remain open. The `.vbs` launcher uses `WScript.Shell.Run(..., 0, False)` for a fully invisible launch.
+> **Note:** The `.bat` launcher runs PowerShell completely in the background — no CMD window will remain open.
 
 Two alternating icons will appear in your system tray — a donut ring (5h) and a bar (7d). Left-click or right-click for the full dropdown with pace, burnout, and language options.
 
 ### Auto-start on login (optional)
 
 1. Press **Win + R**, type `shell:startup`, press Enter
-2. Copy `windows\launch-monitor.vbs` into that folder (edit the script path inside if needed)
+2. Copy `windows\launch-monitor.bat` into that folder (edit the path inside if needed)
 
 ---
 
