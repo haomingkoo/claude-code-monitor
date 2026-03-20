@@ -156,7 +156,7 @@ if [ ! -f "$f" ]; then
 fi
 
 # ntfy status push interval presets
-for interval in 10 30 60 off; do
+for interval in 10 30 60 120 off; do
   f="$SCRIPT_DIR/set-status-${interval}.sh"
   if [ ! -f "$f" ]; then
     if [ "$interval" = "off" ]; then
@@ -1030,6 +1030,7 @@ if [ -n "$NTFY_TOPIC" ]; then
   echo "----$(status_mark 10)${L_NTFY_EVERY} 10m | bash='$SD/set-status-10.sh' terminal=false refresh=true size=$S"
   echo "----$(status_mark 30)${L_NTFY_EVERY} 30m | bash='$SD/set-status-30.sh' terminal=false refresh=true size=$S"
   echo "----$(status_mark 60)${L_NTFY_EVERY} 60m | bash='$SD/set-status-60.sh' terminal=false refresh=true size=$S"
+  echo "----$(status_mark 120)${L_NTFY_EVERY} 2h | bash='$SD/set-status-120.sh' terminal=false refresh=true size=$S"
   echo "----$(status_mark 0)$L_NTFY_OFF | bash='$SD/set-status-off.sh' terminal=false refresh=true size=$S"
 else
   echo "--$L_NTFY_NOT_SET | size=$S $(c "$TEXT_MUTED")"

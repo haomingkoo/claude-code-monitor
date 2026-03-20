@@ -30,8 +30,10 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
   Refresh
   Open log
   ---------------------------------
-  Language                          >
   Refresh Rate                      >
+  Language                          >
+  ⏰ Remind Before Reset            >
+  📱 Phone Alerts (ntfy)            >
 ```
 
 ### Windows (System Tray)
@@ -120,6 +122,16 @@ That's it. You'll now receive:
 | **50% remaining** | Normal | When dropping below 50% |
 | **25% remaining** | High | When dropping below 25% |
 | **10% remaining** | Urgent | When dropping below 10% |
+
+**What you can control:**
+
+| Feature | Toggle | Default |
+|---------|--------|---------|
+| **Threshold alerts** (50/25/10%) | Always on when ntfy is enabled | On |
+| **Reset reminders** | ⏰ Remind Before Reset menu | 60·30·10m |
+| **Status push** | 📱 Phone Alerts → Status Push | Every 30m (options: 10m/30m/60m/2h/Off) |
+
+Threshold alerts and reset reminders always work on **desktop** (macOS notification center) regardless of ntfy. Enabling ntfy adds them to your phone as well — there's no separate phone toggle for these since they're the alerts you'd most want to see.
 
 **Privacy:** No API keys or tokens stored. The topic name is just a string — not a secret. Even if someone guesses it, they'd only see "Claude Code at 25%". You can self-host ntfy for full control.
 
@@ -373,7 +385,7 @@ echo "true" > ~/.cache/claude-usage/ntfy_enabled
 echo "30" > ~/.cache/claude-usage/ntfy_status_interval   # minutes (0 = off)
 ```
 
-Status push interval options: 10m, 30m (default), 60m, Off. Status updates are silent (no buzz) — they just show in the ntfy app when you open it.
+Status push interval options: 10m, 30m (default), 60m, 2h, Off. Status updates are silent (no buzz) — they just show in the ntfy app when you open it.
 
 ### Notification Thresholds (macOS + Windows)
 
