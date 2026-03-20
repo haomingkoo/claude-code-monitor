@@ -1,6 +1,6 @@
 # Claude Code Monitor
 
-A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time — with pace tracking, burnout projections, and native notifications. Available for **macOS** and **Windows**.
+A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time — with pace tracking, burnout projections, native notifications, and optional **phone alerts via [ntfy](https://ntfy.sh)** (no API keys needed). Available for **macOS** and **Windows**.
 
 ## What It Looks Like
 
@@ -90,6 +90,40 @@ Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hou
 - macOS: notification center alerts with sound · Windows: balloon tip notifications
 - Auto-resets when the window refills — no duplicate alerts
 - Configurable thresholds
+
+### Reset Reminders (NEW in v10.0 · macOS)
+- **"Tokens refreshing soon"** — get notified before your 5-hour or 7-day window resets
+- Configurable: remind at **60**, **30**, and **10** minutes before reset (default)
+- **Smart**: skips the reminder if you're actively burning tokens (pace > 1.3x) — only nudges you when you're idle so you know it's time to get back to work
+- Works on desktop (macOS notification center) and phone (via ntfy, see below)
+
+### 📱 Phone Alerts via ntfy (NEW in v10.0 · macOS · Optional)
+Get usage alerts, reset reminders, and status updates on your phone — **no API keys, no accounts, no tokens on disk**.
+
+> **Note:** Phone alerts and reset reminders are currently macOS-only. Windows support may be added in a future release.
+
+Uses [ntfy.sh](https://ntfy.sh), a free open-source push notification service. You pick a topic name (like a private channel), subscribe on your phone, done.
+
+**Setup (30 seconds):**
+
+1. Install the ntfy app on your phone — [iOS](https://apps.apple.com/app/ntfy/id1625396347) · [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
+2. In the menu bar dropdown, click **📱 Phone Alerts → Set Topic…**
+3. A dialog appears with a random topic name — click OK (or customize it)
+4. On your phone, open ntfy → tap **+** → paste/type the same topic name → Subscribe
+
+That's it. You'll now receive:
+
+| Alert | Priority | When |
+|-------|----------|------|
+| **Status updates** | Silent (no buzz) | Every 30m — open ntfy app to check |
+| **Reset reminders** | Normal | Before window resets (configurable) |
+| **50% remaining** | Normal | When dropping below 50% |
+| **25% remaining** | High | When dropping below 25% |
+| **10% remaining** | Urgent | When dropping below 10% |
+
+**Privacy:** No API keys or tokens stored. The topic name is just a string — not a secret. Even if someone guesses it, they'd only see "Claude Code at 25%". You can self-host ntfy for full control.
+
+**Fully optional** — everything works exactly as before without it. Phone alerts are off by default.
 
 ### Dual Rotating Icons (Windows)
 The system tray alternates between two icon shapes for at-a-glance monitoring:
@@ -314,6 +348,33 @@ echo "5m" > ~/.cache/claude-usage/refresh_rate
 
 **Windows:** Right-click tray icon → **Settings** → **Data Refresh Interval** (30s / 1m / 2m / 5m). Or edit `$script:PollInterval` in the script.
 
+### Reset Reminders (macOS)
+
+Select from the **⏰ Remind Before Reset** flyout submenu. Options: 60·30·10m (default), 30·10m, 60m, Off.
+
+Or set manually:
+
+```bash
+echo "60 30 10" > ~/.cache/claude-usage/remind_before   # minutes before reset
+echo "" > ~/.cache/claude-usage/remind_before            # disable
+```
+
+Reminders are smart — they won't fire if you're actively using tokens (pace > 1.3x). They only nudge you when you're idle.
+
+### Phone Alerts — ntfy (macOS)
+
+Set up from the **📱 Phone Alerts** flyout submenu — click **Set Topic…** to get started.
+
+Or set manually:
+
+```bash
+echo "my-topic-name" > ~/.cache/claude-usage/ntfy_topic
+echo "true" > ~/.cache/claude-usage/ntfy_enabled
+echo "30" > ~/.cache/claude-usage/ntfy_status_interval   # minutes (0 = off)
+```
+
+Status push interval options: 10m, 30m (default), 60m, Off. Status updates are silent (no buzz) — they just show in the ntfy app when you open it.
+
 ### Notification Thresholds (macOS + Windows)
 
 ```bash
@@ -430,6 +491,7 @@ The monitor will recreate the cache directory on the next run.
 
 | Version | Changes |
 |---------|---------|
+| **v10.0** | **Phone alerts via ntfy** — push usage alerts, reset reminders, and silent status updates to your phone. No API keys or accounts needed. **Smart reset reminders** — "tokens refreshing in 60m" notifications that skip when you're actively coding. Configurable from dropdown menu. Fully optional — everything works without it. |
 | **v9.2** | Auto-create helper scripts on first run (zero manual setup). Add MIT LICENSE. Clean up repo structure. Fix jq detection and cache TTL values. |
 | **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
 | **v8.1** | Windows: fix CMD window staying open on launch — use VBS silent launcher for zero-window startup |
