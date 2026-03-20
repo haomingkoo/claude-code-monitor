@@ -1,6 +1,12 @@
 # Claude Code Monitor
 
-A menu bar / system tray widget that shows your **remaining** Claude Code rate limits in real time — with pace tracking, burnout projections, native notifications, and optional **phone alerts via [ntfy](https://ntfy.sh)** (no API keys needed). Available for **macOS** and **Windows**.
+Know exactly how much Claude Code you have left — right from your menu bar.
+
+A lightweight widget that tracks your **remaining** rate limits in real time, tells you when you're burning too fast, and alerts you before you run out. Available for **macOS** (SwiftBar) and **Windows** (system tray).
+
+**New in v10.0:** Get alerts on your phone and smart "tokens refreshing soon" reminders — [see below](#-phone-alerts-optional--macos).
+
+---
 
 ## What It Looks Like
 
@@ -38,7 +44,7 @@ A menu bar / system tray widget that shows your **remaining** Claude Code rate l
 
 ### Windows (System Tray)
 
-Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hour session and a **horizontal bar** for the 7-day window. Left-click or right-click for the full dropdown:
+Two icons **rotate** in the system tray — a **donut ring** for the 5-hour session and a **bar** for the 7-day window. Click for the full dropdown:
 
 ```
   Claude Code (max)
@@ -66,151 +72,146 @@ Two icon shapes **rotate** in the system tray — a **donut ring** for the 5-hou
   Exit
 ```
 
+At a glance: 🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
+
+---
+
 ## Features
 
-### Rate Limit Monitoring
-- **5-Hour Session** — remaining % of your rolling 5-hour window
-- **7-Day Window** — remaining % of your weekly limit
+### See What's Left
+- **5-Hour Session** — how much of your rolling 5-hour window remains
+- **7-Day Window** — how much of your weekly limit remains
 - **7-Day Opus** — Opus-specific quota (shown when applicable)
-- **Null-safe** — shows "Not available yet" when data is missing instead of hiding or faking values
 
-### Smart Analytics (macOS + Windows)
-- **Local reset time** — countdown + local time (e.g., "Refills in 1h 49m (4:00 PM)")
-- **Pace indicator** — are you burning faster than sustainable?
+### Know When It Resets
+- Countdown timer + local time — e.g., "Refills in 1h 49m (4:00 PM)"
+- No timezone math needed — it's already converted for you
 
-  | Icon | Pace | Meaning |
-  |------|------|---------|
-  | 🐢 | < 0.8x | Conservative — plenty of headroom |
-  | ✅ | 0.8–1.3x | On pace — sustainable usage |
-  | ⚡ | 1.3–2.0x | Fast — will run out before reset |
-  | 🔥 | > 2.0x | Burning way too fast |
+### Know If You're Going Too Fast
 
-- **Burnout projection** — "Burns out in ~12h" based on your current rate
+| Icon | Pace | What it means |
+|------|------|---------------|
+| 🐢 | < 0.8x | Chill — you have plenty of headroom |
+| ✅ | 0.8–1.3x | Sustainable — you'll make it to reset |
+| ⚡ | 1.3–2.0x | Fast — you'll run out before reset at this rate |
+| 🔥 | > 2.0x | Way too fast — slow down |
 
-### Notifications (macOS + Windows)
-- Native alerts at **50%**, **25%**, and **10%** remaining
-- macOS: notification center alerts with sound · Windows: balloon tip notifications
-- Auto-resets when the window refills — no duplicate alerts
-- Configurable thresholds
+- **Burnout projection** — tells you when you'll hit 0% if you keep going at your current rate
 
-### Reset Reminders (NEW in v10.0 · macOS)
-- **"Tokens refreshing soon"** — get notified before your 5-hour or 7-day window resets
-- Configurable: remind at **60**, **30**, and **10** minutes before reset (default)
-- **Smart**: skips the reminder if you're actively burning tokens (pace > 1.3x) — only nudges you when you're idle so you know it's time to get back to work
-- Works on desktop (macOS notification center) and phone (via ntfy, see below)
+### Get Alerted Before You Run Out
+- Desktop notifications at **50%**, **25%**, and **10%** remaining
+- macOS: notification center with sound · Windows: balloon tips
+- No duplicate alerts — auto-resets when your window refills
 
-### 📱 Phone Alerts via ntfy (NEW in v10.0 · macOS · Optional)
-Get usage alerts, reset reminders, and status updates on your phone — **no API keys, no accounts, no tokens on disk**.
+### Get Reminded When Tokens Refresh (NEW · macOS)
+- Notifies you before your 5-hour or 7-day window resets — so you know when to get back to work
+- **Smart** — won't bother you if you're actively coding (pace > 1.3x). Only nudges when you're idle.
+- Configurable: 60, 30, and 10 minutes before reset (default). Change from the dropdown menu.
 
-> **Note:** Phone alerts and reset reminders are currently macOS-only. Windows support may be added in a future release.
+### 📱 Phone Alerts (Optional · macOS)
 
-Uses [ntfy.sh](https://ntfy.sh), a free open-source push notification service. You pick a topic name (like a private channel), subscribe on your phone, done.
+Get the same alerts on your phone — away from your desk? You'll still know when tokens are low or about to refresh.
 
-**Setup (30 seconds):**
+Uses [ntfy](https://ntfy.sh), a free and open-source notification service. **No accounts, no API keys, no tokens stored on your computer.**
 
-1. Install the ntfy app on your phone — [iOS](https://apps.apple.com/app/ntfy/id1625396347) · [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
+> Currently macOS-only. Windows support may come in a future release.
+
+**Setup takes 30 seconds:**
+
+1. Install the **ntfy** app — [iOS](https://apps.apple.com/app/ntfy/id1625396347) · [Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
 2. In the menu bar dropdown, click **📱 Phone Alerts → Set Topic…**
-3. A dialog appears with a random topic name — click OK (or customize it)
-4. On your phone, open ntfy → tap **+** → paste/type the same topic name → Subscribe
+3. A dialog pops up with a random topic name (like a private channel) — click OK
+4. On your phone, open ntfy → tap **+** → type the same topic name → Subscribe
 
-That's it. You'll now receive:
+Done. Your phone will now receive:
 
-| Alert | Priority | When |
-|-------|----------|------|
-| **Status updates** | Silent (no buzz) | Every 30m — open ntfy app to check |
-| **Reset reminders** | Normal | Before window resets (configurable) |
-| **50% remaining** | Normal | When dropping below 50% |
-| **25% remaining** | High | When dropping below 25% |
-| **10% remaining** | Urgent | When dropping below 10% |
+| What you'll get | How it alerts | When |
+|----------------|---------------|------|
+| **Status check-in** | Silent — just open the app to see it | Periodically (every 30m by default) |
+| **"Tokens resetting soon"** | Normal notification | Before your window resets |
+| **50% remaining** | Normal notification | When you drop below 50% |
+| **25% remaining** | Louder notification | When you drop below 25% |
+| **10% remaining** | Urgent notification | When you're almost out |
 
-**What you can control:**
+**What's configurable:**
 
-| Feature | Toggle | Default |
-|---------|--------|---------|
-| **Threshold alerts** (50/25/10%) | Always on when ntfy is enabled | On |
-| **Reset reminders** | ⏰ Remind Before Reset menu | 60·30·10m |
-| **Status push** | 📱 Phone Alerts → Status Push | Every 30m (options: 10m/30m/60m/2h/Off) |
+| Feature | Where to change it | Default |
+|---------|-------------------|---------|
+| Usage alerts (50/25/10%) | Always on when phone alerts are enabled | On |
+| Reset reminders | ⏰ Remind Before Reset menu | 60 · 30 · 10 min |
+| Status check-ins | 📱 Phone Alerts → Status Push | Every 30m (options: 10m / 30m / 1h / 2h / Off) |
 
-Threshold alerts and reset reminders always work on **desktop** (macOS notification center) regardless of ntfy. Enabling ntfy adds them to your phone as well — there's no separate phone toggle for these since they're the alerts you'd most want to see.
+Desktop alerts (notifications on your Mac) work regardless of whether you set up phone alerts. Phone alerts just extend them to your pocket.
 
-**Privacy:** No API keys or tokens stored. The topic name is just a string — not a secret. Even if someone guesses it, they'd only see "Claude Code at 25%". You can self-host ntfy for full control.
+**Privacy:** Nothing sensitive is stored. The topic name is just a word you pick — not a password. Even if someone guessed it, all they'd see is "Claude Code at 25%." You can also [self-host ntfy](https://docs.ntfy.sh/install/) for full control.
 
-**Fully optional** — everything works exactly as before without it. Phone alerts are off by default.
+**Fully optional** — skip this section entirely and everything else works exactly the same.
+
+### Multi-Language — 6 Languages
+
+Switch from the dropdown menu. No restart needed.
+
+| Language | |
+|----------|--|
+| English | 🇺🇸 |
+| 中文 (Chinese) | 🇨🇳 |
+| 日本語 (Japanese) | 🇯🇵 |
+| 한국어 (Korean) | 🇰🇷 |
+| தமிழ் (Tamil) | 🇮🇳 |
+| Bahasa Melayu (Malay) | 🇲🇾 |
 
 ### Dual Rotating Icons (Windows)
-The system tray alternates between two icon shapes for at-a-glance monitoring:
-- **Donut ring** — 5-hour session remaining %
-- **Horizontal bar** — 7-day window remaining %
+The system tray alternates between two icon shapes:
+- **Donut ring** — 5-hour session
+- **Horizontal bar** — 7-day window
 
-Rotation speed is adjustable from **Settings > Icon Rotation Speed** (2s / 4s / 8s / 15s).
-
-### Multi-Language — 6 Languages (macOS + Windows)
-Switch from the dropdown menu — no script editing needed.
-
-| Code | Language |
-|------|----------|
-| `en` | English |
-| `zh` | 中文 (Chinese) |
-| `ja` | 日本語 (Japanese) |
-| `ko` | 한국어 (Korean) |
-| `ta` | தமிழ் (Tamil) |
-| `ms` | Bahasa Melayu (Malay) |
-
-### Reliability
-- **Timezone-safe** — python3 ISO 8601 parsing handles any timezone offset; macOS `date -u` fallback
-- **Smart caching** — avoids API rate limits (429) with local cache + graceful stale data fallback
-- **Adaptive theme** — auto-detects light/dark mode with optimized color contrast (macOS)
-- **Logging** — debug log for troubleshooting
-
-### At a Glance
-🟢 >50% left · 🟡 20–50% left · 🔴 <20% left
+Rotation speed is adjustable from **Settings > Icon Rotation Speed**.
 
 ---
 
-## Important: 7-Day Window Risk
+## Why the 7-Day Window Matters
 
-The **7-day window is the real constraint** for heavy users. While the 5-hour session resets frequently, the weekly limit is a hard ceiling that only resets once per week.
+The 5-hour session resets often, but the **7-day window is the real limit**. It resets once per week — and if you burn through it early, you're locked out until it resets.
 
-| Risk | Impact |
-|------|--------|
-| **No partial reset** | Resets all at once on a fixed schedule, not rolling |
-| **Shared quota** | Claude.ai web chat + Claude Code share the same weekly limit |
-| **Pace matters** | 🔥 2.0x pace = exhausting a week's quota in ~3.5 days |
-| **Pro limits are tighter** | Heavy sessions can burn through Pro weekly limits in 2–3 days |
-| **Null data possible** | Some accounts show `null` for 7-day — plugin displays "Not available yet" |
+| What to know | |
+|---|---|
+| Resets all at once — not gradually | Plan around the reset date |
+| Claude.ai web chat shares the same quota | Both count toward your weekly limit |
+| 🔥 2.0x pace = burning a week's worth in ~3.5 days | Watch your pace indicator |
 
-**Recommendation:** Keep the 7-day pace at ✅ 1.0x or below. If you see ⚡ or 🔥 on the 7-day window, slow down to avoid a mid-week lockout.
+**Tip:** Keep the 7-day pace at ✅ 1.0x or below. If you see ⚡ or 🔥, ease off.
 
 ---
 
-## macOS Installation
+## Installation
 
-### Prerequisites
+### macOS
+
+**What you need:**
 
 | Requirement | Install |
 |---|---|
-| macOS | — |
 | [SwiftBar](https://github.com/swiftbar/SwiftBar) | `brew install --cask swiftbar` |
 | [jq](https://jqlang.github.io/jq/) | `brew install jq` |
 | python3 (recommended) | `brew install python3` or Xcode CLT |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `brew install claude-code` or `npm install -g @anthropic-ai/claude-code` |
 
-You must be **logged into Claude Code** via OAuth (i.e., you've run `claude` at least once and authenticated). The plugin reads your OAuth token from the macOS Keychain — no API key needed.
+You must have **logged into Claude Code** at least once (`claude` in terminal → authenticate).
 
-### Step 1: Install dependencies
+**Step 1:** Install dependencies
 
 ```bash
 brew install --cask swiftbar
 brew install jq
 ```
 
-### Step 2: Clone this repo
+**Step 2:** Get the plugin
 
 ```bash
 git clone https://github.com/haomingkoo/claude-code-monitor.git ~/SwiftBarPlugins
 ```
 
-Or if you already have a SwiftBar plugins folder, copy the script:
+Or just download the script:
 
 ```bash
 curl -o ~/SwiftBarPlugins/claude-code-monitor.2m.sh \
@@ -218,125 +219,50 @@ curl -o ~/SwiftBarPlugins/claude-code-monitor.2m.sh \
 chmod +x ~/SwiftBarPlugins/claude-code-monitor.2m.sh
 ```
 
-> Helper scripts for language and refresh rate selection are auto-created in `~/.cache/claude-usage/scripts/` on first run — no manual setup needed.
+**Step 3:** Point SwiftBar to the plugin folder
 
-### Step 3: Configure SwiftBar
+1. Open SwiftBar → it asks for a **Plugin Folder**
+2. Press **Cmd + Shift + G**, type `~/SwiftBarPlugins`, click **Open**
 
-1. Open SwiftBar:
-   ```bash
-   open -a SwiftBar
-   ```
-2. SwiftBar will ask you to choose a **Plugin Folder**
-3. In the folder picker, press **Cmd + Shift + G** and type `~/SwiftBarPlugins`
-4. Click **Open**
+You should see **🟢 XX% · 7d:XX%** in your menu bar. Everything else (helper scripts, cache) is created automatically.
 
-You should now see **🟢 XX% · 7d:XX%** in your menu bar.
+### Windows
 
----
-
-## Windows Installation
-
-### Prerequisites
+**What you need:**
 
 | Requirement | Notes |
 |---|---|
-| Windows 10/11 | — |
-| PowerShell 5.1+ | Ships with Windows |
-| .NET Framework | Ships with Windows |
+| Windows 10/11 | |
+| PowerShell 5.1+ | Comes with Windows |
 | [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | `npm install -g @anthropic-ai/claude-code` |
 
-You must be **logged into Claude Code** via OAuth (i.e., you've run `claude` at least once and authenticated). The monitor reads your OAuth token from `~/.claude/.credentials.json` — no API key needed.
+You must have **logged into Claude Code** at least once.
 
-### Step 1: Clone this repo
+**Step 1:** Get the code
 
 ```powershell
 git clone https://github.com/haomingkoo/claude-code-monitor.git
 ```
 
-### Step 2: Run the monitor
+**Step 2:** Run it
 
-**Option A** — Double-click `windows\launch-monitor.bat`
-
-**Option B** — Run from terminal:
+Double-click `windows\launch-monitor.bat` — or from terminal:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -WindowStyle Hidden -File windows\claude-code-monitor.ps1
 ```
 
-> **Note:** The `.bat` launcher runs PowerShell completely in the background — no CMD window will remain open.
+Two icons appear in your system tray. Click for the full dropdown.
 
-Two alternating icons will appear in your system tray — a donut ring (5h) and a bar (7d). Left-click or right-click for the full dropdown with pace, burnout, and language options.
-
-### Auto-start on login (optional)
-
-1. Press **Win + R**, type `shell:startup`, press Enter
-2. Copy `windows\launch-monitor.bat` into that folder (edit the path inside if needed)
+**Auto-start on login (optional):** Press **Win + R** → type `shell:startup` → copy `launch-monitor.bat` into that folder.
 
 ---
 
-## How It Works
-
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────┐
-│ Credentials │     │ Anthropic API    │     │ Menu Bar /  │
-│ (Keychain / │────>│ /api/oauth/usage │────>│ System Tray │
-│  .json file)│     │ (GET, cached)    │     │ (render)    │
-└─────────────┘     └──────────────────┘     └─────────────┘
-```
-
-1. **Auth** — Reads your Claude Code OAuth token (macOS: Keychain, Windows: `~/.claude/.credentials.json`)
-2. **Fetch** — Calls `GET https://api.anthropic.com/api/oauth/usage` with Bearer token auth
-3. **Cache** — Stores the response at `~/.cache/claude-usage/usage.json` (TTL: varies by refresh rate)
-4. **Parse** — Extracts utilization percentages, computes remaining, pace, and burnout
-5. **Render** — Displays the data (macOS: SwiftBar menu bar, Windows: system tray icon + context menu)
-6. **Notify** — Sends native alerts when thresholds are crossed (macOS + Windows)
-7. **Fallback** — On 429 or network error, displays the last cached data
-
-### API Response Format
-
-The monitor reads from an unofficial (but widely used) Anthropic endpoint:
-
-```json
-{
-  "five_hour": {
-    "utilization": 48.0,
-    "resets_at": "2026-03-11T20:00:00+00:00"
-  },
-  "seven_day": {
-    "utilization": 19.0,
-    "resets_at": "2026-03-15T08:00:00+00:00"
-  },
-  "seven_day_opus": {
-    "utilization": 5.0,
-    "resets_at": null
-  }
-}
-```
-
-### Pace Calculation
-
-```
-ideal_usage = (elapsed / window_size) × 100%
-pace = actual_usage / ideal_usage
-```
-
-A pace of **1.0x** means you're using tokens exactly evenly across the window. Above 1.0x and you'll run out before reset.
-
-### Burnout Projection
-
-```
-time_to_burnout = (remaining% / used%) × elapsed_time
-```
-
-Simple linear projection — "if you keep doing what you're doing, when do you hit 100%?"
-
 ## Configuration
 
-### Language (macOS + Windows)
+All settings are accessible from the **dropdown menu** — no file editing required. But if you prefer the terminal:
 
-Click **Language** in the dropdown menu to switch. No restart needed.
-
-Or set it manually:
+### Language
 
 ```bash
 # macOS
@@ -348,36 +274,24 @@ echo "zh" > ~/.cache/claude-usage/language
 
 ### Refresh Rate (macOS)
 
-Select from the **⏱ Refresh Rate** flyout submenu in the dropdown. Options: 2m, 5m, 10m. Default: **2m**.
-
-This controls the cache TTL (how often the API is called). The plugin filename stays fixed at `.2m.sh` — do **not** rename it, as SwiftBar will lose track of the plugin.
-
-Or set it manually:
+How often the API is checked. Options: 2m (default), 5m, 10m.
 
 ```bash
 echo "5m" > ~/.cache/claude-usage/refresh_rate
 ```
 
-**Windows:** Right-click tray icon → **Settings** → **Data Refresh Interval** (30s / 1m / 2m / 5m). Or edit `$script:PollInterval` in the script.
+> **Important:** Don't rename the `.2m.sh` file — SwiftBar needs that exact filename.
+
+**Windows:** Right-click tray icon → **Settings** → **Data Refresh Interval**.
 
 ### Reset Reminders (macOS)
 
-Select from the **⏰ Remind Before Reset** flyout submenu. Options: 60·30·10m (default), 30·10m, 60m, Off.
-
-Or set manually:
-
 ```bash
 echo "60 30 10" > ~/.cache/claude-usage/remind_before   # minutes before reset
-echo "" > ~/.cache/claude-usage/remind_before            # disable
+echo "" > ~/.cache/claude-usage/remind_before            # turn off
 ```
 
-Reminders are smart — they won't fire if you're actively using tokens (pace > 1.3x). They only nudge you when you're idle.
-
-### Phone Alerts — ntfy (macOS)
-
-Set up from the **📱 Phone Alerts** flyout submenu — click **Set Topic…** to get started.
-
-Or set manually:
+### Phone Alerts (macOS)
 
 ```bash
 echo "my-topic-name" > ~/.cache/claude-usage/ntfy_topic
@@ -385,132 +299,112 @@ echo "true" > ~/.cache/claude-usage/ntfy_enabled
 echo "30" > ~/.cache/claude-usage/ntfy_status_interval   # minutes (0 = off)
 ```
 
-Status push interval options: 10m, 30m (default), 60m, 2h, Off. Status updates are silent (no buzz) — they just show in the ntfy app when you open it.
+### Notification Thresholds
 
-### Notification Thresholds (macOS + Windows)
+Edit in the script:
 
 ```bash
-# macOS — edit in script
+# macOS
 NOTIFY_THRESHOLDS="50 25 10"
 
-# Windows — edit in script
+# Windows
 $script:NotifyThresholds = @(50, 25, 10)
 ```
 
-### Cache TTL
+---
 
-Cache TTL is set automatically based on your refresh rate. The API is only called when the cache expires, and on errors the cache timestamp is refreshed to prevent repeated failing calls.
+## How It Works
 
 ```
-$script:CacheTTL = 120 # Windows (seconds) — edit in claude-code-monitor.ps1
+Credentials ──→ Anthropic API ──→ Menu Bar / System Tray
+(Keychain /      /api/oauth/usage    (render + notify)
+ .json file)     (cached locally)
 ```
 
-| Refresh Rate | Cache TTL | API calls/hour |
-|---|---|---|
-| 2m | 120s | ~30 |
-| 5m | 300s | ~12 |
-| 10m | 600s | ~6 |
+1. Reads your Claude Code OAuth token from your system (macOS Keychain / Windows credentials file)
+2. Checks `api.anthropic.com/api/oauth/usage` for current usage
+3. Caches the response locally to avoid hitting rate limits
+4. Calculates remaining %, pace, and burnout projection
+5. Renders in the menu bar / system tray
+6. Sends alerts when thresholds are crossed
+7. Falls back to cached data if the API is unavailable
 
-> **Note:** The plugin file is `.2m.sh`, so SwiftBar runs the script every 2 minutes. The Cache TTL controls how often the API is actually called — if the cache hasn't expired, the run uses cached data.
+---
 
 ## Security
 
-- OAuth token is read **locally** from your own system (macOS Keychain / Windows credentials file)
-- Token is **only** sent to `api.anthropic.com` (Anthropic's servers)
-- No tokens written to disk or logged
-- Cache contains only usage percentages and reset timestamps
-- Logs contain only debug metadata (timestamps, status codes)
+- Your OAuth token **never leaves your machine** — it's only sent to Anthropic's servers
+- No tokens are written to disk or logged
+- The cache only stores usage percentages and reset times
+- Phone alerts (ntfy) don't involve any tokens — just a topic name
+
+---
 
 ## Troubleshooting
 
 ### macOS
 
-| Symptom | Cause | Fix |
+| What you see | What's wrong | How to fix it |
 |---|---|---|
-| `CC: no auth` | Not logged into Claude Code | Run `claude` in terminal and authenticate |
-| `CC: no token` | Keychain entry corrupted | Run `claude logout` then `claude` to re-authenticate |
-| `CC: error` | API returned an error | Click **Open log** to see details |
-| `CC: 429` | Rate limited by Anthropic | Wait a few minutes — the plugin backs off automatically. If persistent, see [Rate Limit Death Spiral](#rate-limit-death-spiral-fixed-in-v90) below |
-| Widget not showing | SwiftBar not configured | Open SwiftBar preferences → set folder to `~/SwiftBarPlugins` |
-| Faint text | macOS vibrancy | Already fixed in v8.0 — update to latest version |
+| `CC: no auth` | Not logged into Claude Code | Run `claude` in terminal and log in |
+| `CC: no token` | Keychain issue | Run `claude logout` then `claude` |
+| `CC: error` | API error | Click **Open log** for details |
+| `CC: 429` | Rate limited | Wait a few minutes — it backs off automatically |
+| Widget not showing | SwiftBar not configured | Open SwiftBar → set folder to `~/SwiftBarPlugins` |
 
 ### Windows
 
-| Symptom | Cause | Fix |
+| What you see | What's wrong | How to fix it |
 |---|---|---|
-| CMD window stays open | Using old `.bat` without VBS | Update to v8.1 — the `.bat` now delegates to `launch-monitor.vbs` for silent launch |
-| No tray icon | Script not running | Run via `launch-monitor.bat` or PowerShell command above |
-| "No data" tooltip | Not logged into Claude Code | Run `claude` in terminal and authenticate |
-| "Already running" popup | Another instance exists | Check system tray for existing icon |
-| Icon stuck on old data | Cache not expired | Right-click tray icon → **Refresh Now** |
+| CMD window stays open | Outdated launcher | Update to latest version |
+| No tray icon | Script not running | Run `launch-monitor.bat` |
+| "No data" | Not logged into Claude Code | Run `claude` in terminal and log in |
 
-### Rate Limit Death Spiral (Fixed in v9.0)
+### Stuck on 429?
 
-**Symptom:** The widget permanently shows `CC: 429` or `Source: rate limited — showing stale data`, and never recovers — even after waiting.
+This means you've been rate limited by Anthropic's API.
 
-**Root cause (v8.0 and earlier):** When the Anthropic API returned 429 (rate limited), the plugin retried on every run without backing off. Each failed retry counted against the rate limit, creating an infinite loop:
+1. **Wait 5 minutes** — the plugin backs off automatically
+2. **Still stuck?** Re-authenticate: `claude auth logout` → `claude auth login`
+3. **Reduce refresh rate** — try 5m or 10m from the menu
+4. **Last resort** — clear everything: `rm -rf ~/.cache/claude-usage` then re-authenticate and restart SwiftBar
 
-```
-API call → 429 → no backoff → next run → API call → 429 → repeat forever
-```
-
-This was caused by a bug where the cache file's timestamp was never updated on errors, so the cache-TTL check always saw "cache expired" and made another API call.
-
-**Fix (v9.0):** The plugin now refreshes the cache timestamp on 429/error responses, so subsequent runs serve cached data instead of hammering the API. The rate limit recovers naturally.
-
-**If you're stuck on 429:**
-
-1. **Wait 5 minutes** — the v9.0 backoff logic will recover automatically
-2. **If still stuck after 10+ minutes**, your OAuth token's rate limit may be exhausted. Re-authenticate to get a fresh token:
-   ```bash
-   claude auth logout
-   claude auth login
-   ```
-3. **Reduce refresh rate** — select a slower rate from the ⏱ Refresh Rate menu (5m or 10m recommended)
-4. **Nuclear option** — clear everything and start fresh:
-   ```bash
-   rm -rf ~/.cache/claude-usage
-   claude auth logout
-   claude auth login
-   ```
-   Then restart SwiftBar.
-
-> **Note:** If you recently logged into Claude Code on another device, your existing token may still be valid but could have a depleted rate limit quota. Re-authenticating on your current device is the quickest fix.
-
-### Viewing Logs
+### Logs
 
 ```bash
 # macOS
 tail -20 ~/.cache/claude-usage/plugin.log
 
-# Windows (PowerShell)
+# Windows
 Get-Content ~\.cache\claude-usage\monitor.log -Tail 20
 ```
 
-### Clearing Cache
+### Reset Cache
 
 ```bash
 # macOS
 rm -rf ~/.cache/claude-usage
 
-# Windows (PowerShell)
+# Windows
 Remove-Item ~\.cache\claude-usage -Recurse -Force
 ```
 
-The monitor will recreate the cache directory on the next run.
+The plugin recreates everything on the next run.
+
+---
 
 ## Version History
 
-| Version | Changes |
-|---------|---------|
-| **v10.0** | **Phone alerts via ntfy** — push usage alerts, reset reminders, and silent status updates to your phone. No API keys or accounts needed. **Smart reset reminders** — "tokens refreshing in 60m" notifications that skip when you're actively coding. Configurable from dropdown menu. Fully optional — everything works without it. |
-| **v9.2** | Auto-create helper scripts on first run (zero manual setup). Add MIT LICENSE. Clean up repo structure. Fix jq detection and cache TTL values. |
-| **v9.0** | **Critical fix:** rate limit death spiral (backoff on 429). Configurable refresh rate via flyout submenu (2m/5m/10m). Language + refresh rate now use compact flyout submenus. Dynamic cache TTL based on refresh rate. |
-| **v8.1** | Windows: fix CMD window staying open on launch — use VBS silent launcher for zero-window startup |
-| **v8.0** | Full feature parity: Windows gets dual rotating icons (donut/bar), pace/burnout, 6 languages, notifications, settings menu, left-click support. macOS: fix text legibility, add Tamil, clickable language selector |
-| **v7.0** | Fix timezone bug, add pace indicator, local reset time, burnout projection, notifications, multi-language (en/zh/ja/ko/ms) |
-| **v6.0** | Add null-safe 7-day handling, robust ISO 8601 parsing with python3, multi-language support |
-| **v5.0** | Initial release: 5h/7d/Opus monitoring, progress bars, adaptive theme, smart caching |
+| Version | What changed |
+|---------|-------------|
+| **v10.0** | Phone alerts via ntfy (optional, no API keys). Smart reset reminders that only nudge when you're idle. Configurable from dropdown menu. |
+| **v9.2** | Auto-create helper scripts. Add MIT LICENSE. Fix jq detection. |
+| **v9.0** | Fix rate limit death spiral. Configurable refresh rate. Dynamic cache TTL. |
+| **v8.1** | Windows: fix CMD window staying open on launch. |
+| **v8.0** | Windows feature parity: dual icons, pace/burnout, 6 languages, notifications. |
+| **v7.0** | Pace indicator, burnout projection, notifications, multi-language. |
+| **v6.0** | Null-safe 7-day, robust timezone parsing, multi-language. |
+| **v5.0** | Initial release. |
 
 ## License
 
