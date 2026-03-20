@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # <xbar.title>Claude Code Usage</xbar.title>
-# <xbar.version>v9.2</xbar.version>
+# <xbar.version>v10.0</xbar.version>
 # <xbar.author>koohaoming</xbar.author>
 # <xbar.desc>Shows Claude Code remaining rate limits via OAuth endpoint</xbar.desc>
 
@@ -41,6 +41,41 @@ esac
 # Notification thresholds (remaining %) — alerts when crossing below these
 NOTIFY_THRESHOLDS="50 25 10"
 
+# Reset reminders — notify before a window resets (desktop + phone)
+REMIND_BEFORE_FILE="$CACHE_DIR/remind_before"
+if [ -f "$REMIND_BEFORE_FILE" ]; then
+  REMIND_BEFORE=$(cat "$REMIND_BEFORE_FILE")
+else
+  REMIND_BEFORE="60 30 10"  # minutes before reset
+fi
+
+# ntfy push notifications — phone alerts with no API keys needed
+# Users pick a topic name (like a channel), subscribe in the ntfy app
+NTFY_TOPIC_FILE="$CACHE_DIR/ntfy_topic"
+NTFY_ENABLED_FILE="$CACHE_DIR/ntfy_enabled"
+NTFY_STATUS_INTERVAL_FILE="$CACHE_DIR/ntfy_status_interval"
+NTFY_STATUS_STATE="$CACHE_DIR/ntfy_last_status"
+NTFY_SERVER="https://ntfy.sh"
+
+if [ -f "$NTFY_TOPIC_FILE" ]; then
+  NTFY_TOPIC=$(cat "$NTFY_TOPIC_FILE")
+else
+  NTFY_TOPIC=""
+fi
+
+if [ -f "$NTFY_ENABLED_FILE" ]; then
+  NTFY_ENABLED=$(cat "$NTFY_ENABLED_FILE")
+else
+  NTFY_ENABLED="false"
+fi
+
+# Status push interval in minutes (silent updates viewable in ntfy app)
+if [ -f "$NTFY_STATUS_INTERVAL_FILE" ]; then
+  NTFY_STATUS_INTERVAL=$(cat "$NTFY_STATUS_INTERVAL_FILE")
+else
+  NTFY_STATUS_INTERVAL=30
+fi
+
 mkdir -p "$CACHE_DIR"
 
 # ============================================================
@@ -65,6 +100,74 @@ for rate in 2m 5m 10m; do
   fi
 done
 
+# Reset reminder presets
+for preset in "60 30 10" "30 10" "60" "off"; do
+  safe=$(echo "$preset" | tr ' ' '-')
+  f="$SCRIPT_DIR/set-remind-${safe}.sh"
+  if [ ! -f "$f" ]; then
+    if [ "$preset" = "off" ]; then
+      printf '#!/bin/bash\necho "" > "$HOME/.cache/claude-usage/remind_before"\n' > "$f"
+    else
+      printf '#!/bin/bash\necho "%s" > "$HOME/.cache/claude-usage/remind_before"\n' "$preset" > "$f"
+    fi
+    chmod +x "$f"
+  fi
+done
+
+# ntfy helper scripts
+f="$SCRIPT_DIR/set-ntfy-topic.sh"
+if [ ! -f "$f" ]; then
+  cat > "$f" << 'NTFY_TOPIC_SCRIPT'
+#!/bin/bash
+RAND=$(openssl rand -hex 4)
+TOPIC=$(osascript -e "text returned of (display dialog \"Enter your ntfy topic name.\nThis is like a channel — subscribe to it in the ntfy app on your phone.\n\nA random default is provided:\" default answer \"claude-monitor-${RAND}\" with title \"Claude Code Monitor\")" 2>/dev/null)
+if [ -n "$TOPIC" ]; then
+  echo "$TOPIC" > "$HOME/.cache/claude-usage/ntfy_topic"
+  echo "true" > "$HOME/.cache/claude-usage/ntfy_enabled"
+  osascript -e "display notification \"Topic set: $TOPIC — now subscribe to this topic in the ntfy app on your phone.\" with title \"Claude Code Monitor\" sound name \"Glass\"" 2>/dev/null
+fi
+NTFY_TOPIC_SCRIPT
+  chmod +x "$f"
+fi
+
+f="$SCRIPT_DIR/copy-ntfy-topic.sh"
+if [ ! -f "$f" ]; then
+  cat > "$f" << 'NTFY_COPY_SCRIPT'
+#!/bin/bash
+TOPIC=$(cat "$HOME/.cache/claude-usage/ntfy_topic" 2>/dev/null)
+if [ -n "$TOPIC" ]; then
+  echo -n "$TOPIC" | pbcopy
+  osascript -e "display notification \"Copied: $TOPIC\" with title \"Claude Code Monitor\"" 2>/dev/null
+fi
+NTFY_COPY_SCRIPT
+  chmod +x "$f"
+fi
+
+f="$SCRIPT_DIR/ntfy-enable.sh"
+if [ ! -f "$f" ]; then
+  printf '#!/bin/bash\necho "true" > "$HOME/.cache/claude-usage/ntfy_enabled"\n' > "$f"
+  chmod +x "$f"
+fi
+
+f="$SCRIPT_DIR/ntfy-disable.sh"
+if [ ! -f "$f" ]; then
+  printf '#!/bin/bash\necho "false" > "$HOME/.cache/claude-usage/ntfy_enabled"\n' > "$f"
+  chmod +x "$f"
+fi
+
+# ntfy status push interval presets
+for interval in 10 30 60 120 off; do
+  f="$SCRIPT_DIR/set-status-${interval}.sh"
+  if [ ! -f "$f" ]; then
+    if [ "$interval" = "off" ]; then
+      printf '#!/bin/bash\necho "0" > "$HOME/.cache/claude-usage/ntfy_status_interval"\n' > "$f"
+    else
+      printf '#!/bin/bash\necho "%s" > "$HOME/.cache/claude-usage/ntfy_status_interval"\n' "$interval" > "$f"
+    fi
+    chmod +x "$f"
+  fi
+done
+
 # ============================================================
 # TRANSLATIONS
 # ============================================================
@@ -79,12 +182,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="API 返回数据无效"; L_API_ERROR="API 错误"
     L_NEED_JQ="需要安装 jq"; L_INSTALL_JQ="安装 jq"
     L_NOTIFY_TITLE="Claude Code 用量警告"; L_REFRESH_RATE="刷新频率"
+    L_REMIND_RESET="⏰ 重置前提醒"; L_RESETS_SOON="重置提醒"
+    L_PHONE_ALERTS="📱 手机提醒 (ntfy)"; L_NTFY_SET_TOPIC="设置主题…"
+    L_NTFY_COPY_TOPIC="复制主题"; L_NTFY_NOT_SET="未配置 — 点击设置主题"
+    L_STATUS_PUSH="状态推送"; L_NTFY_EVERY="每"; L_NTFY_OFF="关闭"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    fmt_reset_remind() { echo "${1} 将在 ~${2}分钟后重置 (${3})"; }
     ;;
   ja)
     L_SESSION_5H="5時間セッション"; L_WINDOW_7D="7日間ウィンドウ"; L_WINDOW_7D_OPUS="7日間 Opus"
@@ -96,12 +204,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="APIレスポンスが無効"; L_API_ERROR="APIエラー"
     L_NEED_JQ="jqが必要です"; L_INSTALL_JQ="jqをインストール"
     L_NOTIFY_TITLE="Claude Code 使用量警告"; L_REFRESH_RATE="更新頻度"
+    L_REMIND_RESET="⏰ リセット前リマインド"; L_RESETS_SOON="リセットリマインド"
+    L_PHONE_ALERTS="📱 スマホ通知 (ntfy)"; L_NTFY_SET_TOPIC="トピック設定…"
+    L_NTFY_COPY_TOPIC="トピックをコピー"; L_NTFY_NOT_SET="未設定 — トピック設定をクリック"
+    L_STATUS_PUSH="ステータス通知"; L_NTFY_EVERY="毎"; L_NTFY_OFF="オフ"
     fmt_remaining() { echo "$L_REMAINING ${1}%"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: $L_REMAINING ${2}%"; }
+    fmt_reset_remind() { echo "${1} ~${2}分後にリセット (${3})"; }
     ;;
   ko)
     L_SESSION_5H="5시간 세션"; L_WINDOW_7D="7일 윈도우"; L_WINDOW_7D_OPUS="7일 Opus"
@@ -113,12 +226,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="API 응답 오류"; L_API_ERROR="API 오류"
     L_NEED_JQ="jq 필요"; L_INSTALL_JQ="jq 설치"
     L_NOTIFY_TITLE="Claude Code 사용량 경고"; L_REFRESH_RATE="새로고침 주기"
+    L_REMIND_RESET="⏰ 리셋 전 알림"; L_RESETS_SOON="리셋 알림"
+    L_PHONE_ALERTS="📱 휴대폰 알림 (ntfy)"; L_NTFY_SET_TOPIC="토픽 설정…"
+    L_NTFY_COPY_TOPIC="토픽 복사"; L_NTFY_NOT_SET="미설정 — 토픽 설정을 클릭하세요"
+    L_STATUS_PUSH="상태 알림"; L_NTFY_EVERY="매"; L_NTFY_OFF="끄기"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    fmt_reset_remind() { echo "${1} ~${2}분 후 리셋 (${3})"; }
     ;;
   ta)
     L_SESSION_5H="5-மணி அமர்வு"; L_WINDOW_7D="7-நாள் சாளரம்"; L_WINDOW_7D_OPUS="7-நாள் Opus"
@@ -130,12 +248,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="API பதில் தவறானது"; L_API_ERROR="API பிழை"
     L_NEED_JQ="jq தேவை"; L_INSTALL_JQ="jq நிறுவு"
     L_NOTIFY_TITLE="Claude Code பயன்பாட்டு எச்சரிக்கை"; L_REFRESH_RATE="புதுப்பிப்பு வீதம்"
+    L_REMIND_RESET="⏰ மீட்டமைப்பு நினைவூட்டல்"; L_RESETS_SOON="மீட்டமைப்பு நினைவூட்டல்"
+    L_PHONE_ALERTS="📱 தொலைபேசி விழிப்பூட்டல் (ntfy)"; L_NTFY_SET_TOPIC="தலைப்பு அமை…"
+    L_NTFY_COPY_TOPIC="தலைப்பை நகலெடு"; L_NTFY_NOT_SET="அமைக்கவில்லை — தலைப்பை அமைக்கவும்"
+    L_STATUS_PUSH="நிலை அறிவிப்பு"; L_NTFY_EVERY="ஒவ்வொரு"; L_NTFY_OFF="நிறுத்து"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    fmt_reset_remind() { echo "${1} ~${2} நிமிடத்தில் மீட்டமைப்பு (${3})"; }
     ;;
   ms)
     L_SESSION_5H="Sesi 5-Jam"; L_WINDOW_7D="Tetingkap 7-Hari"; L_WINDOW_7D_OPUS="7-Hari Opus"
@@ -147,12 +270,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="Respons API tidak sah"; L_API_ERROR="Ralat API"
     L_NEED_JQ="Perlu jq"; L_INSTALL_JQ="Pasang jq"
     L_NOTIFY_TITLE="Amaran Penggunaan Claude Code"; L_REFRESH_RATE="Kadar muat semula"
+    L_REMIND_RESET="⏰ Peringatan Sebelum Set Semula"; L_RESETS_SOON="Peringatan Set Semula"
+    L_PHONE_ALERTS="📱 Amaran Telefon (ntfy)"; L_NTFY_SET_TOPIC="Tetapkan Topik…"
+    L_NTFY_COPY_TOPIC="Salin Topik"; L_NTFY_NOT_SET="Belum dikonfigurasi — klik Tetapkan Topik"
+    L_STATUS_PUSH="Status Tolak"; L_NTFY_EVERY="setiap"; L_NTFY_OFF="Matikan"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT: ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    fmt_reset_remind() { echo "${1} set semula dalam ~${2}m (${3})"; }
     ;;
   *)
     L_SESSION_5H="5-Hour Session"; L_WINDOW_7D="7-Day Window"; L_WINDOW_7D_OPUS="7-Day Opus"
@@ -164,12 +292,17 @@ case "$LANGUAGE" in
     L_BAD_DATA="Invalid response from API"; L_API_ERROR="API error"
     L_NEED_JQ="Need jq"; L_INSTALL_JQ="Install jq"
     L_NOTIFY_TITLE="Claude Code Usage Warning"; L_REFRESH_RATE="Refresh Rate"
+    L_REMIND_RESET="⏰ Remind Before Reset"; L_RESETS_SOON="Reset Reminder"
+    L_PHONE_ALERTS="📱 Phone Alerts (ntfy)"; L_NTFY_SET_TOPIC="Set Topic…"
+    L_NTFY_COPY_TOPIC="Copy Topic"; L_NTFY_NOT_SET="Not configured — click Set Topic"
+    L_STATUS_PUSH="Status Push"; L_NTFY_EVERY="every"; L_NTFY_OFF="Off"
     fmt_remaining() { echo "${1}% $L_REMAINING"; }
     fmt_refills() { echo "$L_REFILLS ${1}"; }
     fmt_burns() { echo "$L_BURNS ~${1}"; }
     fmt_resets_at() { echo "$L_RESETS_AT ${1}"; }
     fmt_pace() { echo "$L_PACE: ${1}x"; }
     fmt_notify() { echo "${1}: ${2}% $L_REMAINING"; }
+    fmt_reset_remind() { echo "${1} resets in ~${2}m (${3})"; }
     ;;
 esac
 
@@ -287,12 +420,12 @@ else
   fi
 fi
 
-# Validate JSON
-if ! echo "$USAGE" | $JQ -e '.five_hour' &>/dev/null; then
-  log "ERROR" "Invalid JSON response"
-  echo "CC: bad data"
+# Validate JSON — API sometimes returns {"five_hour": null} temporarily
+if ! echo "$USAGE" | $JQ -e '.five_hour.utilization // empty' &>/dev/null; then
+  log "WARN" "API returned null data — will retry next run"
+  echo "CC: waiting"
   echo "---"
-  echo "$L_BAD_DATA | size=13 color=#CC0000"
+  echo "$L_NOT_AVAIL | size=13 $(c "$TEXT_MUTED")"
   echo "---"
   echo "$L_OPEN_LOG | bash='open' param1='$LOG_FILE' terminal=false size=13"
   echo "$L_REFRESH | refresh=true size=13"
@@ -594,6 +727,27 @@ pace_icon() {
 # ============================================================
 # NOTIFICATIONS
 # ============================================================
+
+# Send push notification via ntfy (no API keys — just a topic name)
+ntfy_send() {
+  local title="$1"
+  local message="$2"
+  local priority="${3:-default}"
+  local tags="${4:-}"
+
+  if [ "$NTFY_ENABLED" != "true" ] || [ -z "$NTFY_TOPIC" ]; then
+    return
+  fi
+
+  local -a cmd=(curl -s --max-time 5
+    -H "Title: $title"
+    -H "Priority: $priority")
+  [ -n "$tags" ] && cmd+=(-H "Tags: $tags")
+  cmd+=(-d "$message" "${NTFY_SERVER}/${NTFY_TOPIC}")
+
+  "${cmd[@]}" >/dev/null 2>&1 &
+}
+
 check_and_notify() {
   local label="$1"
   local remaining="$2"
@@ -615,14 +769,123 @@ check_and_notify() {
 
   for threshold in $NOTIFY_THRESHOLDS; do
     if [ "$remaining_int" -le "$threshold" ] && [ "$last_threshold" -gt "$threshold" ] 2>/dev/null; then
-      # Crossed below this threshold — notify
+      # Crossed below this threshold — notify desktop
       local msg=$(fmt_notify "$label" "$remaining_int")
       osascript -e "display notification \"$msg\" with title \"$L_NOTIFY_TITLE\" sound name \"Funk\"" 2>/dev/null
+      # Also push to phone via ntfy (escalating priority)
+      local ntfy_priority="default"
+      if [ "$threshold" -le 10 ]; then
+        ntfy_priority="urgent"
+      elif [ "$threshold" -le 25 ]; then
+        ntfy_priority="high"
+      fi
+      ntfy_send "$L_NOTIFY_TITLE" "$msg" "$ntfy_priority" "warning"
       echo "$threshold" > "$state_file"
       log "INFO" "Notification sent: $label at ${remaining_int}% (threshold: ${threshold}%)"
       return
     fi
   done
+}
+
+# Remind before a window resets (desktop + phone)
+check_reset_reminder() {
+  local label="$1"
+  local reset_ts="$2"
+  local key="$3"
+  local remaining="$4"
+
+  if [ -z "$REMIND_BEFORE" ]; then return; fi
+
+  local epoch=$(parse_reset_epoch "$reset_ts")
+  if [ -z "$epoch" ]; then return; fi
+
+  local now=$(date "+%s")
+  local secs_until=$((epoch - now))
+  local mins_until=$((secs_until / 60))
+
+  if [ "$mins_until" -le 0 ]; then return; fi
+
+  local state_file="${CACHE_DIR}/remind_state_${key}"
+  local last_reminded=999
+  if [ -f "$state_file" ]; then
+    last_reminded=$(cat "$state_file" 2>/dev/null)
+    [ -z "$last_reminded" ] && last_reminded=999
+  fi
+
+  # Only remind if usage is moderate — don't disturb someone actively burning tokens
+  # (if pace > 1.3x they're clearly at the computer and don't need a reminder)
+  local remaining_int=${remaining%.*}
+  if [ "$key" = "5h" ]; then
+    local pace=$(calc_pace "$five_hr_used" "$five_hr_reset" "18000")
+  else
+    local pace=$(calc_pace "$seven_day_used" "$seven_day_reset" "604800")
+  fi
+  if [ -n "$pace" ]; then
+    local pace_x10=$(echo "scale=0; $pace * 10 / 1" | bc)
+    if [ "$pace_x10" -ge 13 ]; then
+      log "INFO" "Reset reminder skipped: $label pace ${pace}x (actively using)"
+      return
+    fi
+  fi
+
+  # Check thresholds (must be in descending order: e.g., "60 30 10")
+  for mins in $REMIND_BEFORE; do
+    if [ "$mins_until" -le "$mins" ] && [ "$last_reminded" -gt "$mins" ]; then
+      local reset_time=$(format_local_reset_time "$reset_ts")
+      local msg=$(fmt_reset_remind "$label" "$mins_until" "$reset_time")
+      [ -n "$remaining" ] && msg="$msg — ${remaining_int}% remaining"
+      osascript -e "display notification \"$msg\" with title \"$L_RESETS_SOON\" sound name \"Funk\"" 2>/dev/null
+      ntfy_send "$L_RESETS_SOON" "$msg" "default" "clock,arrows_counterclockwise"
+      echo "$mins" > "$state_file"
+      log "INFO" "Reset reminder: $label in ${mins_until}m (threshold: ${mins}m)"
+      return
+    fi
+  done
+
+  # Reset state when far from next reset (new window started)
+  local max_remind=$(echo "$REMIND_BEFORE" | tr ' ' '\n' | sort -rn | head -1)
+  if [ "$mins_until" -gt "$max_remind" ] && [ "$last_reminded" -ne 999 ]; then
+    echo "999" > "$state_file"
+  fi
+}
+
+# Silent status push to ntfy (viewable in app without buzzing)
+ntfy_status_push() {
+  if [ "$NTFY_ENABLED" != "true" ] || [ -z "$NTFY_TOPIC" ]; then return; fi
+  if [ "$NTFY_STATUS_INTERVAL" = "0" ] || [ -z "$NTFY_STATUS_INTERVAL" ]; then return; fi
+
+  local now=$(date +%s)
+  local last_sent=0
+  if [ -f "$NTFY_STATUS_STATE" ]; then
+    last_sent=$(cat "$NTFY_STATUS_STATE" 2>/dev/null)
+    [ -z "$last_sent" ] && last_sent=0
+  fi
+
+  local interval_secs=$((NTFY_STATUS_INTERVAL * 60))
+  if [ $((now - last_sent)) -lt "$interval_secs" ]; then return; fi
+
+  # Build status message
+  local msg="5h: ${five_hr_left}%"
+  if [ "$HAS_SEVEN_DAY" = true ]; then
+    msg="$msg | 7d: ${seven_day_left}%"
+  fi
+
+  local pace=$(calc_pace "$five_hr_used" "$five_hr_reset" "18000")
+  if [ -n "$pace" ]; then
+    local picon=$(pace_icon "$pace")
+    msg="$msg | ${picon} ${pace}x"
+  fi
+
+  local reset_str=$(format_reset "$five_hr_reset")
+  local local_time=$(format_local_reset_time "$five_hr_reset")
+  if [ -n "$reset_str" ]; then
+    msg="$msg | Resets in $reset_str"
+    [ -n "$local_time" ] && msg="$msg ($local_time)"
+  fi
+
+  ntfy_send "Claude Code Status" "$msg" "min" "bar_chart"
+  echo "$now" > "$NTFY_STATUS_STATE"
+  log "INFO" "ntfy status push sent"
 }
 
 # ============================================================
@@ -740,6 +1003,38 @@ echo "--$(lang_mark ja)日本語 | bash='$LD/set-lang-ja.sh' terminal=false refr
 echo "--$(lang_mark ko)한국어 | bash='$LD/set-lang-ko.sh' terminal=false refresh=true size=$S"
 echo "--$(lang_mark ta)தமிழ் | bash='$LD/set-lang-ta.sh' terminal=false refresh=true size=$S"
 echo "--$(lang_mark ms)Bahasa Melayu | bash='$LD/set-lang-ms.sh' terminal=false refresh=true size=$S"
+# Reset reminders — flyout submenu
+SD="$HOME/.cache/claude-usage/scripts"
+remind_mark() { [ "$REMIND_BEFORE" = "$1" ] && echo "✓ " || echo ""; }
+echo "$L_REMIND_RESET: ${REMIND_BEFORE:-$L_NTFY_OFF} | size=$S $(c "$TEXT_SECONDARY")"
+echo "--$(remind_mark "60 30 10")60 · 30 · 10m | bash='$SD/set-remind-60-30-10.sh' terminal=false refresh=true size=$S"
+echo "--$(remind_mark "30 10")30 · 10m | bash='$SD/set-remind-30-10.sh' terminal=false refresh=true size=$S"
+echo "--$(remind_mark "60")60m | bash='$SD/set-remind-60.sh' terminal=false refresh=true size=$S"
+echo "--$(remind_mark "")$L_NTFY_OFF | bash='$SD/set-remind-off.sh' terminal=false refresh=true size=$S"
+# ntfy phone alerts — flyout submenu
+if [ "$NTFY_ENABLED" = "true" ] && [ -n "$NTFY_TOPIC" ]; then
+  echo "$L_PHONE_ALERTS ✓ | size=$S $(c "$TEXT_SECONDARY")"
+else
+  echo "$L_PHONE_ALERTS | size=$S $(c "$TEXT_SECONDARY")"
+fi
+echo "--$L_NTFY_SET_TOPIC | bash='$SD/set-ntfy-topic.sh' terminal=false refresh=true size=$S"
+if [ -n "$NTFY_TOPIC" ]; then
+  echo "--📋 $L_NTFY_COPY_TOPIC: $NTFY_TOPIC | bash='$SD/copy-ntfy-topic.sh' terminal=false size=$S"
+  ntfy_on_mark() { [ "$NTFY_ENABLED" = "true" ] && echo "✓ " || echo ""; }
+  ntfy_off_mark() { [ "$NTFY_ENABLED" != "true" ] && echo "✓ " || echo ""; }
+  echo "--$(ntfy_on_mark)On | bash='$SD/ntfy-enable.sh' terminal=false refresh=true size=$S"
+  echo "--$(ntfy_off_mark)Off | bash='$SD/ntfy-disable.sh' terminal=false refresh=true size=$S"
+  echo "-----"
+  status_mark() { [ "$NTFY_STATUS_INTERVAL" = "$1" ] && echo "✓ " || echo ""; }
+  echo "--$L_STATUS_PUSH | size=$S $(c "$TEXT_MUTED")"
+  echo "----$(status_mark 10)${L_NTFY_EVERY} 10m | bash='$SD/set-status-10.sh' terminal=false refresh=true size=$S"
+  echo "----$(status_mark 30)${L_NTFY_EVERY} 30m | bash='$SD/set-status-30.sh' terminal=false refresh=true size=$S"
+  echo "----$(status_mark 60)${L_NTFY_EVERY} 60m | bash='$SD/set-status-60.sh' terminal=false refresh=true size=$S"
+  echo "----$(status_mark 120)${L_NTFY_EVERY} 2h | bash='$SD/set-status-120.sh' terminal=false refresh=true size=$S"
+  echo "----$(status_mark 0)$L_NTFY_OFF | bash='$SD/set-status-off.sh' terminal=false refresh=true size=$S"
+else
+  echo "--$L_NTFY_NOT_SET | size=$S $(c "$TEXT_MUTED")"
+fi
 
 # ============================================================
 # NOTIFICATIONS (run after render so UI updates immediately)
@@ -748,3 +1043,12 @@ check_and_notify "$L_SESSION_5H" "$five_hr_left" "5h"
 if [ "$HAS_SEVEN_DAY" = true ]; then
   check_and_notify "$L_WINDOW_7D" "$seven_day_left" "7d"
 fi
+
+# Reset reminders (desktop + phone if ntfy enabled)
+check_reset_reminder "$L_SESSION_5H" "$five_hr_reset" "5h" "$five_hr_left"
+if [ "$HAS_SEVEN_DAY" = true ]; then
+  check_reset_reminder "$L_WINDOW_7D" "$seven_day_reset" "7d" "$seven_day_left"
+fi
+
+# Silent status push to phone (ntfy only, throttled)
+ntfy_status_push
