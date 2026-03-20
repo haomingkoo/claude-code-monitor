@@ -420,12 +420,12 @@ else
   fi
 fi
 
-# Validate JSON
-if ! echo "$USAGE" | $JQ -e '.five_hour' &>/dev/null; then
-  log "ERROR" "Invalid JSON response"
-  echo "CC: bad data"
+# Validate JSON — API sometimes returns {"five_hour": null} temporarily
+if ! echo "$USAGE" | $JQ -e '.five_hour.utilization // empty' &>/dev/null; then
+  log "WARN" "API returned null data — will retry next run"
+  echo "CC: waiting"
   echo "---"
-  echo "$L_BAD_DATA | size=13 color=#CC0000"
+  echo "$L_NOT_AVAIL | size=13 $(c "$TEXT_MUTED")"
   echo "---"
   echo "$L_OPEN_LOG | bash='open' param1='$LOG_FILE' terminal=false size=13"
   echo "$L_REFRESH | refresh=true size=13"
